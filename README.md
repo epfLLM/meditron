@@ -61,6 +61,46 @@ You can scrape and clean all 46K guidelines (including closed-access sources) by
 
 More details can be found in the [GAP-Replay documentation](gap-replay/README.md).
 
+## Training Procedure
+
+We used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library, a derivative of Nvidia's Megatron LM project, to optimize training efficiency.
+Hardware consists of 16 nodes of 8x NVIDIA A100 (80GB) SXM GPUs connected by NVLink and NVSwitch with a single Nvidia ConnectX-6 DX network card and equipped with 2 x AMD EPYC 7543 32-Core Processors and 512 GB of RAM.
+The nodes are connected via RDMA over Converged Ethernet.
+
+Our three way parallelism scheme uses:
+
+- Data Parallelism (DP -- different GPUs process different subsets of the batches) of 2,
+- Pipeline Parallelism (PP -- different GPUs process different layers) of 8,
+- Tensor Parallelism (TP -- different GPUs process different subtensors for matrix multiplication) of 8.
+
+<img width=50% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
+
+## Supervised Finetuning
+
+We again used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library for supervised finetuning (sinlge-node and multi-node).
+We made a file `sft.py` that automatically handles the tokenization and finetuning process through Megatron-LLM. To start a multi-node finetuning process, here is an example:
+
+```bash
+cd finetuning
+python sft.py \
+    --checkpoint=baseline \
+    --size=70 \
+    --run_name=cotmedqa \
+    --data /pure-mlo-scratch/zechen/meditron/benchmarks/ft_preprocessed/medqa_cot_train.jsonl \
+    --val /pure-mlo-scratch/zechen/meditron/benchmarks/ft_preprocessed/medqa_cot_validation.jsonl \
+    --micro_batch=4
+    --nodes=4 \
+    --addr=<RANK0_HOST_NAME> \
+    --save_interval=200 \
+    --pp=4 \
+    --seq 4096 \
+    --rank=<CURRENT_RANK>
+```
+
+Run the above line of code at node rank-0, rank-1, rank-2, rank3 to start a 4-node finetuning process.
+
+**Important!**: Make sure to have the proper paths defined in `sft.py` and `finetune_sft.sh`.
+
 ## Uses
 
 MediTron-70B is being made available for further testing and assessment as an AI assistant to enhance clinical decision-making and democratize access to an LLM for healthcare use. Potential use cases may include but are not limited to:
@@ -109,17 +149,3 @@ For detailed instructions to run inference and evaluation with medical benchmark
 ## Model Deployment
 
 For detailed instructions to deploy meditron models and have a interactive chat session, please read the documentations here [Model Deployment](./deployment/README.md)
-
-## Training Procedure
-
-We used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library, a derivative of Nvidia's Megatron LM project, to optimize training efficiency.
-Hardware consists of 16 nodes of 8x NVIDIA A100 (80GB) SXM GPUs connected by NVLink and NVSwitch with a single Nvidia ConnectX-6 DX network card and equipped with 2 x AMD EPYC 7543 32-Core Processors and 512 GB of RAM.
-The nodes are connected via RDMA over Converged Ethernet.
-
-Our three way parallelism scheme uses:
-
-- Data Parallelism (DP -- different GPUs process different subsets of the batches) of 2,
-- Pipeline Parallelism (PP -- different GPUs process different layers) of 8,
-- Tensor Parallelism (TP -- different GPUs process different subtensors for matrix multiplication) of 8.
-
-![Pipeline](figures/meditron-pipeline.png "Pipeline")
