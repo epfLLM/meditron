@@ -1,0 +1,93 @@
+{
+  "name": "better-chatgpt",
+  "private": true,
+  "version": "1.0.4",
+  "type": "module",
+  "homepage": "./",
+  "main": "electron/index.cjs",
+  "author": "Jing Hua <betterchatgpt@mail.tjh.sg>",
+  "description": "Play and chat smarter with BetterChatGPT - an amazing open-source web app with a better UI for exploring OpenAI's ChatGPT API!",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "electron": "concurrently -k \"BROWSER=none yarn dev\" \"wait-on tcp:5173 && electron .\"",
+    "pack": "yarn build && electron-builder --dir",
+    "make": "yarn build && electron-builder"
+  },
+  "build": {
+    "appId": "better-chatgpt",
+    "productName": "Better ChatGPT",
+    "artifactName": "${os}-${name}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "dist/icon-rounded-macos.png"
+    },
+    "mac": {
+      "icon": "dist/icon-rounded-macos.png"
+    },
+    "linux": {
+      "target": [
+        "tar.gz",
+        "AppImage"
+      ],
+      "category": "Chat",
+      "icon": "dist/icon-rounded.png"
+    },
+    "win": {
+      "target": "NSIS",
+      "icon": "dist/icon-rounded.png"
+    }
+  },
+  "dependencies": {
+    "@dqbd/tiktoken": "^1.0.2",
+    "@react-oauth/google": "^0.9.0",
+    "electron-is-dev": "^2.0.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "electron-updater": "^5.3.0",
+    "html2canvas": "^1.4.1",
+    "i18next": "^22.4.11",
+    "i18next-browser-languagedetector": "^7.0.1",
+    "i18next-http-backend": "^2.1.1",
+    "jspdf": "^2.5.1",
+    "katex": "^0.16.4",
+    "lodash": "^4.17.21",
+    "match-sorter": "^6.3.1",
+    "papaparse": "^5.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^12.2.0",
+    "react-markdown": "^8.0.5",
+    "react-scroll-to-bottom": "^4.2.0",
+    "rehype-highlight": "^6.0.0",
+    "rehype-katex": "^6.0.2",
+    "remark-gfm": "^3.0.1",
+    "remark-math": "^5.1.1",
+    "uuid": "^9.0.0",
+    "zustand": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.9",
+    "@types/lodash": "^4.14.192",
+    "@types/papaparse": "^5.3.7",
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@types/react-scroll-to-bottom": "^4.2.0",
+    "@types/uuid": "^9.0.1",
+    "@vitejs/plugin-react-swc": "^3.0.0",
+    "autoprefixer": "^10.4.13",
+    "concurrently": "^8.0.1",
+    "electron": "^23.2.0",
+    "electron-builder": "^23.6.0",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.7",
+    "typescript": "^4.9.3",
+    "vite": "^4.1.0",
+    "vite-plugin-top-level-await": "^1.3.0",
+    "vite-plugin-wasm": "^3.2.2",
+    "wait-on": "^7.0.1"
+  }
+}

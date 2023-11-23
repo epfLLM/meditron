@@ -1,0 +1,9 @@
+[submodule "Megatron-LLM"]
+	path = Megatron-LLM
+	url = https://github.com/epfLLM/Megatron-LLM.git
+[submodule "FastChat"]
+	path = FastChat
+	url = https://github.com/eric11eca/FastChat.git
+[submodule "BetterChatGPT"]
+	path = BetterChatGPT
+	url = https://github.com/eric11eca/BetterChatGPT/
