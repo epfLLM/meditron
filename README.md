@@ -117,6 +117,8 @@ Our three way parallelism scheme uses:
 | global batch size | 512 |
 |  |  |
 
+You can see the script we used to pretrain our models through Megatron-LLM here: [finetune.sh](./pretrain/finetune.sh)
+
 ## Supervised Finetuning
 
 We again used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library for supervised finetuning (sinlge-node and multi-node).
