@@ -34,6 +34,8 @@ model = AutoModelForCausalLM.from_pretrained("epfl-llm/meditron-70B")
 # Add your custom code for inference here
 ```
 
+<img width=50% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
+
 ## Medical Training Data
 
 We release code to download and pre-process the data used to train MediTron.
@@ -73,7 +75,47 @@ Our three way parallelism scheme uses:
 - Pipeline Parallelism (PP -- different GPUs process different layers) of 8,
 - Tensor Parallelism (TP -- different GPUs process different subtensors for matrix multiplication) of 8.
 
-<img width=50% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
+### Training Hyperparameters (7B)
+
+|  |  |
+| --- | ------ |
+| bf16 | true |
+| lr  | 3e-4 |
+| eps | 1e-5       |
+| betas | \[0.9, 0.95\] |
+| clip_grad | 1 |
+| weight decay | 0.1 |
+| DP size | 16 |
+| TP size | 4 |
+| PP size | 1 |
+| seq length | 2048 |
+| lr scheduler | cosine|
+| min lr | 1e-6 |
+| warmup iteration | 2000 |
+| micro batch size | 10 |
+| global batch size | 1600 |
+|  |  |
+
+### Training Hyperparameters (70B)
+
+|  |  |
+| --- | ------ |
+| bf16 | true |
+| lr  | 1.5e-4 |
+| eps | 1e-5       |
+| betas | \[0.9, 0.95\] |
+| clip_grad | 1 |
+| weight decay | 0.1 |
+| DP size | 2 |
+| TP size | 8 |
+| PP size | 8 |
+| seq length | 4096 |
+| lr scheduler | cosine|
+| min lr | 1e-6 |
+| warmup iteration | 2000 |
+| micro batch size | 2 |
+| global batch size | 512 |
+|  |  |
 
 ## Supervised Finetuning
 
@@ -100,6 +142,26 @@ python sft.py \
 Run the above line of code at node rank-0, rank-1, rank-2, rank3 to start a 4-node finetuning process.
 
 **Important!**: Make sure to have the proper paths defined in `sft.py` and `finetune_sft.sh`.
+
+### Finetuning Hyperparameters
+
+|  |  |
+| --- | ------ |
+| bf16 | true |
+| lr  | 2e-5 |
+| eps | 1e-5       |
+| betas | \[0.9, 0.95\] |
+| clip_grad | 1 |
+| weight decay | 0.1 |
+| DP size | 16 |
+| TP size | 4 |
+| PP size | 1 |
+| seq length | 2048 or 4096 |
+| lr scheduler | cosine|
+| min lr | 2e-6 |
+| warmup ratio | 0.1 |
+| added tokens | [<\|im_start\|>, <\|im_end\|>] |
+|  |  |
 
 ## Uses
 
