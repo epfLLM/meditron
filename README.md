@@ -6,6 +6,15 @@ We release MediTron-7B and MediTron-70B, which are adapted to the medical domain
 
 MediTron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and Flan-PaLM on multiple medical reasoning tasks.
 
+<details open>
+  <summary><strong>Advisory Notice</strong></summary>
+
+  <blockquote style="background-color: #f2f2f2; padding: 10px; margin: 0 0 10px; border-left: 5px solid #ddd;">
+    While Meditron is designed to encode medical knowledge from sources of high-quality evidence, it is not yet adapted to deliver this knowledge appropriately, safely, or within professional actionable constraints that are contextually sensitive and validated. It is unvalidated for real-world use, and extensive testing, fine-tuning, and randomized trials are needed before it can be used in practice.
+  </blockquote>
+</details>
+
+
 ## Model Details
 
 - **Developed by:** [EPFL LLM Team](https://huggingface.co/epfl-llm)
