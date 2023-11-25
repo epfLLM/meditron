@@ -1,4 +1,4 @@
-<img width=50% src="figures/meditron_LOGO.png" alt="MediTron logo" title="Meditron-logo">
+<img width=40% src="figures/meditron_LOGO.png" alt="MediTron logo" title="Meditron-logo">
 
 MediTron is a suite of open-source medical Large Language Models (LLMs).
 
