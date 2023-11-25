@@ -34,7 +34,7 @@ model = AutoModelForCausalLM.from_pretrained("epfl-llm/meditron-70B")
 # Add your custom code for inference here
 ```
 
-<img width=50% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
+<img width=80% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
 
 ## Medical Training Data
 
