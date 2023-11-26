@@ -10,7 +10,7 @@ MediTron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
   <summary><strong>Advisory Notice</strong></summary>
 
   <blockquote style="background-color: #f2f2f2; padding: 10px; margin: 0 0 10px; border-left: 5px solid #ddd;">
-    While Meditron is designed to encode medical knowledge from sources of high-quality evidence, it is not yet adapted to deliver this knowledge appropriately, safely, or within professional actionable constraints that are contextually sensitive and validated. It is unvalidated for real-world use, and extensive testing, fine-tuning, and randomized trials are needed before it can be used in practice.
+    While Meditron is designed to encode medical knowledge from sources of high-quality evidence, it is not yet adapted to deliver this knowledge appropriately, safely, or within professional actionable constraints. We recommend against using Meditron in medical applications without extensive use-case alignment, as well as additional testing, specifically including randomized controlled trials in real-world practice settings.
   </blockquote>
 </details>
 
