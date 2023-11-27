@@ -14,7 +14,6 @@ Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
   </blockquote>
 </details>
 
-
 ## Model Details
 
 - **Developed by:** [EPFL LLM Team](https://huggingface.co/epfl-llm)
