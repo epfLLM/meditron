@@ -53,7 +53,7 @@ def load_instruction(prompt_name):
     :param benchmark: str, the name of the benchmark
     :param prompt_name: str, the name of the prompt to be used
     """
-    path = os.path.join(ROOT_DIR, 'finetuning', 'instructions.json')
+    path = os.path.join(ROOT_DIR, 'evaluation', 'instructions.json')
     if not os.path.exists(path):
         raise FileNotFoundError('Please save the different prompts to instructions.json')
 
