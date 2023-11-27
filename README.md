@@ -77,7 +77,7 @@ We used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed t
 Hardware consists of 16 nodes of 8x NVIDIA A100 (80GB) SXM GPUs connected by NVLink and NVSwitch with a single Nvidia ConnectX-6 DX network card and equipped with 2 x AMD EPYC 7543 32-Core Processors and 512 GB of RAM.
 The nodes are connected via RDMA over Converged Ethernet.
 
-Our three way parallelism scheme uses:
+Our three-way parallelism scheme uses the following:
 
 - Data Parallelism (DP -- different GPUs process different subsets of the batches) of 2,
 - Pipeline Parallelism (PP -- different GPUs process different layers) of 8,
@@ -130,7 +130,7 @@ You can see the script we used to pretrain our models through Megatron-LLM here:
 ## Supervised Finetuning
 
 We again used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library for supervised finetuning (sinlge-node and multi-node).
-We made a file `sft.py` that automatically handles the tokenization and finetuning process through Megatron-LLM. To start a multi-node finetuning process, here is an example:
+We made a file, `sft.py`, that automatically handles the tokenization and finetuning process through Megatron-LLM. To start a multi-node finetuning process, here is an example:
 
 ```bash
 cd finetuning
@@ -149,7 +149,7 @@ python sft.py \
     --rank=<CURRENT_RANK>
 ```
 
-Run the above line of code at node rank-0, rank-1, rank-2, rank3 to start a 4-node finetuning process.
+Run the above line of code at node rank-0, rank-1, rank-2, and rank3 to start a 4-node finetuning process.
 
 **Important!**: Make sure to have the proper paths defined in `sft.py` and `finetune_sft.sh`.
 
@@ -207,7 +207,7 @@ Specific formatting needs to be followed to prompt our finetuned models, includi
 
 ## Medical Benchmark Inference & Evaluation
 
-### Requriments
+### Requirements
 
 Before you start, please install the necessary packages:
 
@@ -216,8 +216,30 @@ Before you start, please install the necessary packages:
     datasets >= 2.14.6
     torch >= 2.0.1
 
-For detailed instructions to run inference and evaluation with medical benchmarks, please read the documentations here [inference & evaluation instructions](./evaluation/README.md).
+For detailed instructions to run inference and evaluation with medical benchmarks, please read the documentation here [inference & evaluation instructions](./evaluation/README.md).
 
 ## Model Deployment
 
-For detailed instructions to deploy meditron models and have a interactive chat session, please read the documentations here [Model Deployment](./deployment/README.md)
+For detailed instructions to deploy meditron models and have an interactive chat session, please read the documentation here [Model Deployment](./deployment/README.md)
+
+## Citation
+
+If you use this software, please cite it:
+<pre>
+@software{epfmedtrn,
+  author       = {Zeming Chen and
+                  Antoine Bonnet and
+                  Angelika Romanou and
+                  Francesco Salvi  and
+                  Alejandro Hernández Cano  and
+                  Kyle Matoba  and
+                  Alexandre Sallinen and
+                  Syrielle Montariol and
+                  Antoine Bosselut  and
+                  Martin Jaggi},
+  title = {MediTron-70B: Scaling Medical Pretraining for Large Language Models},
+  month = November,
+  year = 2023,
+  url = {https://github.com/epfLLM/meditron}
+}
+</pre>
