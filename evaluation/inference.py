@@ -145,9 +145,9 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
     :param seed: int, the seed to use for few-shot learning, Defaults to 1234
     return: pd.DataFrame, a DataFrame containing the scores for each answer
     """
-    columns_to_save = ['prompt', 'gold']
+    columns_to_save = ['prompt', 'gold', 'question']
     if 'subset' in data.features:
-        columns_to_save = ['prompt', 'gold', 'subset']
+        columns_to_save.append('subset')
     predictions = pd.DataFrame(data, columns=data.features)[columns_to_save]
     predictions = predictions.assign(output="Null")
     if args.multi_seed:
@@ -177,9 +177,6 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
         for prompt, out in zip(batch["prompt"], outputs):
             predictions.loc[predictions['prompt'] == prompt, 'output'] = out
         batch_counter += 1
-
-        # if batch_counter == 2:
-        #     break
 
     return predictions
 
