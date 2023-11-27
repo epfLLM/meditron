@@ -1,10 +1,19 @@
-<img width=50% src="figures/meditron_LOGO.png" alt="MediTron logo" title="Meditron-logo">
+<img width=40% src="figures/meditron_LOGO.png" alt="MediTron logo" title="Meditron-logo">
 
-MediTron is a suite of open-source medical Large Language Models (LLMs).
+Meditron is a suite of open-source medical Large Language Models (LLMs).
 
-We release MediTron-7B and MediTron-70B, which are adapted to the medical domain from Llama-2 through continued pretraining on a comprehensively curated medical corpus, including selected PubMed papers and abstracts, a new dataset of internationally-recognized medical guidelines, and a general domain corpus.
+We release Meditron-7B and Meditron-70B, which are adapted to the medical domain from Llama-2 through continued pretraining on a comprehensively curated medical corpus, including selected PubMed papers and abstracts, a new dataset of internationally-recognized medical guidelines, and a general domain corpus.
 
-MediTron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and Flan-PaLM on multiple medical reasoning tasks.
+Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and Flan-PaLM on multiple medical reasoning tasks.
+
+<details open>
+  <summary><strong>Advisory Notice</strong></summary>
+
+  <blockquote style="background-color: #f2f2f2; padding: 10px; margin: 0 0 10px; border-left: 5px solid #ddd;">
+    While Meditron is designed to encode medical knowledge from sources of high-quality evidence, it is not yet adapted to deliver this knowledge appropriately, safely, or within professional actionable constraints. We recommend against using Meditron in medical applications without extensive use-case alignment, as well as additional testing, specifically including randomized controlled trials in real-world practice settings.
+  </blockquote>
+</details>
+
 
 ## Model Details
 
@@ -19,11 +28,11 @@ MediTron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
 - **Status:** This is a static model trained on an offline dataset. Future versions of the tuned models will be released as we enhance model's performance.
 - **Knowledge Cutoff:** August 2023
 - **Trainer:** [epflLLM/Megatron-LLM](https://github.com/epfLLM/Megatron-LLM)
-- **Paper:** *[MediTron-70B: Scaling Medical Pretraining for Large Language Models]()* **[ADD LINK]**
+- **Paper:** *[Meditron-70B: Scaling Medical Pretraining for Large Language Models]()* **[ADD LINK]**
 
 ## How to use
 
-You can load MediTron model directly from the [HuggingFace model hub](https://huggingface.co/epfl-llm/meditron-70B) as follows:
+You can load Meditron model directly from the [HuggingFace model hub](https://huggingface.co/epfl-llm/meditron-70B) as follows:
 
 ```python
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -34,11 +43,11 @@ model = AutoModelForCausalLM.from_pretrained("epfl-llm/meditron-70B")
 # Add your custom code for inference here
 ```
 
-<img width=50% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
+<img width=100% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
 
 ## Medical Training Data
 
-We release code to download and pre-process the data used to train MediTron.
+We release code to download and pre-process the data used to train Meditron.
 
 MediTron’s domain-adaptive pre-training corpus *GAP-Replay* combines 48.1B tokens from four corpora:
 
@@ -167,7 +176,7 @@ Run the above line of code at node rank-0, rank-1, rank-2, rank3 to start a 4-no
 
 ## Uses
 
-MediTron-70B is being made available for further testing and assessment as an AI assistant to enhance clinical decision-making and democratize access to an LLM for healthcare use. Potential use cases may include but are not limited to:
+Meditron-70B is being made available for further testing and assessment as an AI assistant to enhance clinical decision-making and democratize access to an LLM for healthcare use. Potential use cases may include but are not limited to:
 
 - Medical exam question answering
 - Supporting differential diagnosis
