@@ -5,7 +5,6 @@ import math
 from pathlib import Path
 from typing import Optional
 from subprocess import Popen, PIPE
-from contextlib import contextmanager
 from argparse import ArgumentParser, Namespace
 
 
@@ -35,24 +34,6 @@ DEFAULT_EPOCHS = 3
 DEFAULT_SEQ = 2048
 DEFAULT_LOSS_MASK = 0.0
 
-@contextmanager
-def prepare_checkpoint(checkpoint: Path, iteration: Optional[int | str] = None):
-    if iteration is not None:
-        latest_txt = checkpoint/"latest_checkpointed_iteration.txt"
-        with open(latest_txt) as f:
-           orig_iter = f.read()
-        with open(latest_txt, "w+") as f:
-            f.write(str(iteration))
-
-    try:
-        yield
-    finally:
-        if iteration is not None:
-            with open(latest_txt) as f:
-                current_iter = f.read()
-            if current_iter == str(iteration):
-                with open(latest_txt, "w+") as f:
-                    f.write(orig_iter)
 
 def execute(cmd: list[str]):
     with Popen(cmd) as proc:
@@ -155,11 +136,6 @@ def finetune(args: Namespace, data_path: Path, val_path: Path, out: Path):
     status_path = out/".status.txt"
     print("Status path:", status_path)
 
-    if args.rank > 0 or load_check:
-        intermediate_iter = None
-    else:
-        intermediate_iter = args.intermediate_iter
-
     if not load_check:
         if args.run_name in N_DOCS:
             n_docs = N_DOCS[args.run_name]
@@ -247,7 +223,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", default="baseline", choices=[name for name, size in CHECKPOINTS],
                         help="Name of the model to finetune")
-    parser.add_argument("save_checkpoint_dir", type=str,
+    parser.add_argument("--save_checkpoint_dir", type=str,
                         default="/pure-mlo-scratch/alhernan/megatron-data/checkpoints/instructed/",
                         help="Directory to save the checkpoint")
     parser.add_argument("--tokenized_data_dir", type=str,
