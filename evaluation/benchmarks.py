@@ -7,24 +7,17 @@ import json
 import random
 import pandas as pd
 
+from tqdm import tqdm
 from datasets import load_dataset, Dataset, load_from_disk
-
-# from evaluation.prompt_cot.mmlu import cot_prompts as mmlu_cot_prompts
-# from evaluation.prompt_cot.medqa import cot_prompts as medqa_cot_prompts
-# from evaluation.prompt_cot.medmcqa import cot_prompts as medmcqa_cot_prompts
-
-from prompt_cot.mmlu import cot_prompts as mmlu_cot_prompts
-from prompt_cot.medqa import cot_prompts as medqa_cot_prompts
-from prompt_cot.medmcqa import cot_prompts as medmcqa_cot_prompts
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COT_PROMPTS = {
-    'mmlu_general': mmlu_cot_prompts,
-    'mmlu_medical': medmcqa_cot_prompts,
-    'medqa': medqa_cot_prompts,
-    'medmcqa': medmcqa_cot_prompts,
+    'mmlu_general': "medmcqa",
+    'mmlu_medical': "medmcqa",
+    'medqa': "medqa",
+    'medmcqa': "medmcqa",
+    'pubmedqa': "pubmedqa",
 }
-
 
 def benchmark_factory(name):
     """
@@ -36,20 +29,22 @@ def benchmark_factory(name):
     # Note: benchmark is instantiated *after* selection.
     factories = {
         "medmcqa": MedMCQA,
-        "pubmedqa": PubMedQA,
-        "newpubmedqa": ClosedPubMedQA,
+        "pubmedqa": ClosedPubMedQA,
+        "open_pubmedqa": PubMedQA,
         "medqa": MedQA,
-        "medicationqa": MedicationQA,
-        "orca": Orca,
+        "medqa4": MedQA4,
+        "blurb": Blurb,
         "medicationqa": MedicationQA,
         "mmlu_medical": MMLU,
         "mmlu_general": MMLU,
-        "lambada": Lambada,
+        "truthfulqa": TruthfulQA,
+        "gsm8k": GSM8K
     }
     if name not in factories:
-        raise ValueError(
-            f"""Benchmark {name} not found.\nSelect one of the following: {list(factories.keys())}""")
+        raise ValueError("Benchmark {} not found. \
+                         Select one of the following: {}".format(name, list(factories.keys())))
     return factories[name](name)
+
 
 def load_instruction(prompt_name):
     """
@@ -254,19 +249,20 @@ class Benchmark:
             raise ValueError("Please provide a valid partition split: {}".format(self.splits))
 
     def add_few_shot(self, shots=8, seed=42, load_cot=False):
-        """
-        """
+        def _get_question(prompt):
+            if 'Question:' in prompt:
+                return prompt.split('Question:')[1]
+            else:
+                return prompt
+
         if load_cot:
             assert self.name in COT_PROMPTS, "No CoT prompts found for {}.".format(self.name)
-            cot_cue = "Step-by-step reasoning: "
-            cot_cue = "Let's think step by step like a medical professional."
-            cot_cue = "Let’s work this out in a step by step way to be sure that we have the right answer."
-            demonstrations = random.sample(COT_PROMPTS[self.name], shots)
+            cot_path = os.path.join(ROOT_DIR, 'evaluation', 'prompt_cot', f"{COT_PROMPTS[self.name]}.jsonl")
+            samples = pd.read_json(cot_path, lines=True).to_dict(orient='records')
+            demonstrations = random.sample(samples, shots)
             few_shot_prompt = '\n\n'.join([
-                "{}\n{}\n{}\nSo the correct answer is: {}".format(
-                    demo['prompt'], cot_cue,
-                    "\n".join(demo['steps']),
-                    demo['gold']) for demo in demonstrations])
+                f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
+                for demo in demonstrations])
         else:
             assert self.train_data is not None, "Please load the train data first."
             demonstrations = self.train_data.shuffle(seed=seed).select(range(shots))
@@ -386,7 +382,8 @@ class ClosedPubMedQA(Benchmark):
 
     @staticmethod
     def custom_preprocessing(row):
-        row["prompt"] = f"{row['CONTEXTS'][0]}\n{row['QUESTION']}"
+        context = '\n'.join(row['CONTEXTS'])
+        row["prompt"] = f"{context}\n{row['QUESTION']}"
         row["gold"] = row['final_decision']
         row["long_answer"] = row["LONG_ANSWER"]
         return row
@@ -404,16 +401,7 @@ class PubMedQAValidation(Benchmark):
         self.dir_name = 'bigbio___pubmed_qa'
         self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
         self.splits = ['validation']
-        self.subsets = ['pubmed_qa_labeled_fold1_bigbio_qa',
-                        'pubmed_qa_labeled_fold2_bigbio_qa',
-                        'pubmed_qa_labeled_fold3_bigbio_qa',
-                        'pubmed_qa_labeled_fold4_bigbio_qa',
-                        'pubmed_qa_labeled_fold5_bigbio_qa',
-                        'pubmed_qa_labeled_fold6_bigbio_qa',
-                        'pubmed_qa_labeled_fold7_bigbio_qa',
-                        'pubmed_qa_labeled_fold8_bigbio_qa',
-                        'pubmed_qa_labeled_fold9_bigbio_qa',
-                        'pubmed_qa_labeled_fold10_bigbio_qa',]
+        # self.subsets = ['pubmed_qa_labeled_fold1_bigbio_qa'] + ['pubmed_qa_artificial_source']
         self.num_options = 3
         self.local_path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', 'pubmedqa_pubmedqa_validation.jsonl')
 
@@ -448,11 +436,35 @@ class MedQA(Benchmark):
                 break
         return row
 
+class MedQA4(Benchmark):
+    '''
+    MedQA is a dataset for solving medical problems collected from the professional medical board exams.
+
+    Huggingface card: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options
+    '''
+    def __init__(self, name='medqa4') -> None:
+        super().__init__(name)
+        self.hub_name = 'GBaker/MedQA-USMLE-4-options'
+        self.dir_name = 'GBaker___med_qa-usmle-4-options'
+        self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
+        self.splits = ['train', 'test']
+        self.num_options = 4
+
+    @staticmethod
+    def custom_preprocessing(row):
+        choices = [row['options'][opt] for opt in row['options']]
+        row["prompt"] = format_mcq(row['question'], choices)
+        for opt in row['options']:
+            if row['options'][opt] == row['answer']:
+                row['gold'] = opt
+                break
+        return row
+
 
 class MedicationQA(Benchmark):
     '''
-    MedicationQA is a dataset of consumer health questions about medications.
-    Huggingface card: https://huggingface.co/datasets/truehealth/medicationqa
+    MedicationQA is a benchmark to measure whether a language model is truthful in generating answers to questions
+    Huggingface card: https://huggingface.co/datasets/truthful_qa
     '''
     def __init__(self, name='medicationqa') -> None:
         super().__init__(name)
@@ -471,6 +483,34 @@ class MedicationQA(Benchmark):
         row["gold"] = row['Answer']
         return row
 
+
+class TruthfulQA(Benchmark):
+    '''
+    TruthfulQA is a dataset of consumer health questions about medications.
+    Huggingface card: https://huggingface.co/datasets/truehealth/medicationqa
+    '''
+    def __init__(self, name='truthfulqa') -> None:
+        super().__init__(name)
+        self.hub_name = 'truthful_qa'
+        self.dir_name = 'truthful_qa'
+        self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
+        self.splits = ['validation']
+        self.subsets = ['multiple_choice']
+        self.num_options = 4
+
+    @staticmethod
+    def custom_preprocessing(row):
+        options = row['mc1_targets']['choices']
+        labels = row['mc1_targets']['labels']
+        gold_option = options[labels.index(1)]
+        options.remove(gold_option)
+        wrong_options = random.choices(options, k=3)
+        choices = [gold_option] + wrong_options
+        random.shuffle(choices)
+        gold_id = choices.index(gold_option)
+        row["prompt"] = format_mcq(row['question'], choices)
+        row["gold"] = ['A', 'B', 'C', 'D'][gold_id]
+        return row
 
 class MMLU(Benchmark):
     '''
@@ -512,27 +552,25 @@ class MMLU(Benchmark):
         row["subset"] = row["subset"]
         return row
 
-class TruthfulQA(Benchmark):
+
+class GSM8K(Benchmark):
     '''
-    TruthfulQA is a dataset of consumer health questions about medications.
-    Huggingface card: https://huggingface.co/datasets/truehealth/medicationqa
+    GSM8K (Grade School Math 8K) is a dataset of 8.5K grade school math word problems.
+    Huggingface card: https://huggingface.co/datasets/gsm8k
     '''
-    def __init__(self, name='truthfulqa') -> None:
+    def __init__(self, name='gsm8k') -> None:
         super().__init__(name)
-        self.hub_name = 'truthful_qa'
-        self.dir_name = 'truthful_qa'
+        self.hub_name = 'gsm8k'
+        self.dir_name = 'gsm8k'
         self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
-        self.splits = ['validation']
-        self.subsets = ['multiple_choice']
-        self.num_options = 4
+        self.splits = ['train', 'test']
+        self.subsets = ['main']
 
     @staticmethod
     def custom_preprocessing(row):
-        options = row['mc1_targets']['choices']
-        labels = row['mc1_targets']['labels']
-        gold_id = labels.index(1)
-        row["prompt"] = format_mcq(row['question'], options)
-        row["gold"] = ['A', 'B', 'C', 'D'][gold_id]
+        row["prompt"] = row['question']
+        row["gold"] = row['answer'].split('####')[1].strip()
+        row["steps"] = row['answer'].split('####')[0].strip()
         return row
 
 class Blurb(Benchmark):
@@ -578,49 +616,6 @@ class Blurb(Benchmark):
             entities.append(' '.join(entity))
         return entities
 
-class Lambada(Benchmark):
-    """
-    LAMBADA is a dataset to evaluate the capabilities of computational models for text understanding by means of a word prediction task.
-    Huggingface card: https://huggingface.co/datasets/lambada
-
-    Uses the format recommended by: https://github.com/EleutherAI/lm-evaluation-harness
-    """
-    def __init__(self, name='lambada') -> None:
-        super().__init__(name)
-        self.hub_name = 'lambada'
-        self.dir_name = 'lambada'
-        self.path = os.path.join('benchmarks', 'datasets', self.dir_name)
-        self.splits = ['train', 'test', 'validation']
-
-    @staticmethod
-    def custom_preprocessing(row):
-        row["prompt"] = row["text"].rsplit(" ", 1)[0],
-        row["gold"] = row["text"].rsplit(" ", 1)[1]
-        return row
-
-
-class Orca(Benchmark):
-    '''
-    The OpenOrca dataset is a collection of augmented FLAN Collection data.
-    Currently ~1M GPT-4 completions, and ~3.2M GPT-3.5 completions.
-
-    Huggingface card: https://huggingface.co/datasets/Open-Orca/OpenOrca
-    '''
-
-    def __init__(self, name='orca') -> None:
-        super().__init__(name)
-        self.hub_name = 'Open-Orca/OpenOrca'
-        self.dir_name = 'orca'
-        self.path = os.path.join('instructions', 'datasets', self.dir_name)
-        self.splits = ['train']
-        self.type = 'instruction'
-
-    @staticmethod
-    def custom_preprocessing(row):
-        row['system'] = row.pop('system_prompt')
-        row['user'] = row.pop('question')
-        row['assistant'] = row.pop('response')
-        return row
 
 
 def format_mcq(question, options):
