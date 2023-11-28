@@ -65,6 +65,8 @@ Then, to download and pre-process all 46K clinical practice guidelines, run:
 
 All sources of clinical practice guidelines supported by our scrapers are shown below.
 
+<img src="../figures/sources.png" alt="Guideline sources" width="100%"/>
+
 | Source | Full Name | Source tag | Total guidelines | Total words | Audience | Released |
 |-|-|-|-|-|-|-|
 | **[AAFP](https://www.aafp.org)** | American Academy of Family Physicians | `aafp` | 50 | 9.4K | Doctor | No |
