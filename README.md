@@ -19,7 +19,8 @@ Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
 - **Developed by:** [EPFL LLM Team](https://huggingface.co/epfl-llm)
 - **Model type:** Causal decoder-only transformer language model
 - **Language(s):** English (mainly)
-- **License:** [LLAMA 2 COMMUNITY LICENSE AGREEMENT](https://huggingface.co/meta-llama/Llama-2-70b/raw/main/LICENSE.txt)
+- **Model License:** [LLAMA 2 COMMUNITY LICENSE AGREEMENT](https://huggingface.co/meta-llama/Llama-2-70b/raw/main/LICENSE.txt)
+- **Code License:** [APACHE 2.0 LICENSE](LICENSE)
 - **Continue-pretrained from model:** [Llama-2-70B](https://huggingface.co/meta-llama/Llama-2-70b)
 - **Context length:**  4k tokens
 - **Input:**  Text only data
@@ -27,7 +28,7 @@ Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
 - **Status:** This is a static model trained on an offline dataset. Future versions of the tuned models will be released as we enhance model's performance.
 - **Knowledge Cutoff:** August 2023
 - **Trainer:** [epflLLM/Megatron-LLM](https://github.com/epfLLM/Megatron-LLM)
-- **Paper:** *[Meditron-70B: Scaling Medical Pretraining for Large Language Models]()* **[ADD LINK]**
+- **Paper:** *[Meditron-70B: Scaling Medical Pretraining for Large Language Models](https://arxiv.org/abs/2311.16079)*
 
 ## How to use
 
@@ -235,6 +236,7 @@ If you use this software, please cite it:
                   Kyle Matoba  and
                   Alexandre Sallinen and
                   Syrielle Montariol and
+                  Vinitra Swamy and
                   Antoine Bosselut  and
                   Martin Jaggi},
   title = {MediTron-70B: Scaling Medical Pretraining for Large Language Models},
