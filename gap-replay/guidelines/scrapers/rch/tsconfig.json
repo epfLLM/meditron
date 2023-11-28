@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "node16",
+    "target": "es2022",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "strict": true,
+"esModuleInterop": true,
+"forceConsistentCasingInFileNames": true,
+    "outDir": "js",
+    "moduleResolution": "node",
+    "allowJs": true
+  },
+  "files":[
+    "src/index.ts"
+  ]
+}
