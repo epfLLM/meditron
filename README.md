@@ -223,8 +223,17 @@ For detailed instructions to deploy meditron models and have an interactive chat
 
 ## Citation
 
-If you use this software, please cite it:
+If you use this software or our paper, please cite them:
 <pre>
+@misc{chen2023meditron70b,
+      title={MEDITRON-70B: Scaling Medical Pretraining for Large Language Models}, 
+      author={Zeming Chen and Alejandro Hernández Cano and Angelika Romanou and Antoine Bonnet and Kyle Matoba and Francesco Salvi and Matteo Pagliardini and Simin Fan and Andreas Köpf and Amirkeivan Mohtashami and Alexandre Sallinen and Alireza Sakhaeirad and Vinitra Swamy and Igor Krawczuk and Deniz Bayazit and Axel Marmet and Syrielle Montariol and Mary-Anne Hartley and Martin Jaggi and Antoine Bosselut},
+      year={2023},
+      eprint={2311.16079},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+
 @software{epfmedtrn,
   author = {Zeming Chen and Alejandro Hernández-Cano and Angelika Romanou and Antoine Bonnet and Kyle Matoba and Francesco Salvi and Matteo Pagliardini and Simin Fan and Andreas Köpf and Amirkeivan Mohtashami and Alexandre Sallinen and Alireza Sakhaeirad and Vinitra Swamy and Igor Krawczuk and Deniz Bayazit and Axel Marmet and Syrielle Montariol and Mary-Anne Hartley and Martin Jaggi and Antoine Bosselut},
   title = {MediTron-70B: Scaling Medical Pretraining for Large Language Models},
