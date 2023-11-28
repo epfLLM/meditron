@@ -176,7 +176,10 @@ class Scraper():
         self.pdfs = False  # Whether articles need to be converted from PDF to text
         self.pdf_path = os.path.join(self.source_path, 'pdfs')
         self.links_path = os.path.join(self.source_path, 'links.txt')
-        self.articles_path = os.path.join(self.path, 'raw', f'{source}.jsonl')
+
+        articles_dir = os.path.join(self.path, 'raw')
+        os.makedirs(articles_dir, exist_ok=True)
+        self.articles_path = os.path.join(articles_dir, f'{source}.jsonl')
         self.driver = setup_driver(self.pdf_path)
 
     def save_articles(self, articles, path=None):
@@ -277,7 +280,8 @@ class AAFPScraper(Scraper):
                 if content_text == '':
                     continue
                 article = {"title": self.driver.title, 
-                            "content": markdownify.markdownify(content_text)}
+                           "text": markdownify.markdownify(content_text),
+                           "url": link}
                 articles.append(article)
             except:
                 pass
@@ -326,6 +330,7 @@ class CDCScraper(Scraper):
         url = "https://stacks.cdc.gov/cbrowse?pid=cdc%3A100&parentId=cdc%3A100&maxResults=100&start=0"
         self.driver.get(url)
         links = []
+
         def next_page():
             try:
                 continue_link = self.driver.find_element(By.PARTIAL_LINK_TEXT, 'Next')
@@ -446,8 +451,9 @@ class CMAScraper(Scraper):
                 element = wait.until(EC.presence_of_element_located((
                     By.XPATH, "//div[@id='main-content']")))
                 inner_html = element.get_attribute('innerHTML')
-                pdfs.append({"title" : self.driver.title, 
-                            "content" : markdownify.markdownify(inner_html)})
+                pdfs.append({"title": self.driver.title,
+                             "text": markdownify.markdownify(inner_html),
+                             "url": pdf_link})
             except:
                 pass
         cma_pdfs_path = os.path.join(self.source_path, 'cma_pdfs.jsonl')
@@ -464,7 +470,8 @@ class CMAScraper(Scraper):
                     By.XPATH, "//main[@property='mainContentOfPage']")))
                 inner_html = element.get_attribute('innerHTML')
                 cma.append({"title": self.driver.title,
-                            "content": markdownify.markdownify(inner_html)})
+                            "text": markdownify.markdownify(inner_html),
+                            "url": cma_link})
             except:
                 pass
         articles.extend(cma)
@@ -535,7 +542,8 @@ class DrugsScraper(Scraper):
                     content = wait.until(EC.presence_of_element_located((
                         By.XPATH, "//div[@class='contentBox']")))
                     article = {"title": self.driver.title, 
-                               "content": markdownify.markdownify(content)}
+                               "text": markdownify.markdownify(content),
+                               "url": link}
                     articles.append(article)
             except:
                 pass
@@ -586,7 +594,7 @@ class GCScraper(Scraper):
         parts = [subparts for part in parts for subparts in part]
         dict_parts = []
         for part in parts:
-            dict_parts.append({"title" : part[0:part.find("\\n")],
+            dict_parts.append({"title": part[0:part.find("\\n")],
                                "text": part.replace("\\n", "\n").replace("\n\n", "\n")})
         self.save_articles(dict_parts)
 
@@ -679,7 +687,8 @@ class IDSAScraper(Scraper):
                 text = markdownify.markdownify(inner_html)
                 article = {
                     'link': link,
-                    'text': text
+                    'text': text,
+                    "url": link
                 }
                 articles.append(article)
             except Exception as e:
@@ -761,9 +770,9 @@ class MAGICScraper(Scraper):
                 wait = WebDriverWait(self.driver, 10)
                 strength = wait.until(EC.presence_of_all_elements_located((
                     By.XPATH, "//div[@class='recommendationWidget dojoDndItem']//div[@class='textComments']")))
-                articles.append({"title" : self.driver.title, 
-                            "strength" : [markdownify.markdownify(stren.get_attribute("innerHTML")).replace("\n\n", "\n") for stren in strength],
-                            "content" : markdownify.markdownify(inner_html).replace("\n\n", "\n")})
+                articles.append({"title": self.driver.title,
+                            "strength": [markdownify.markdownify(stren.get_attribute("innerHTML")).replace("\n\n", "\n") for stren in strength],
+                            "content": markdownify.markdownify(inner_html).replace("\n\n", "\n")})
             except:
                 print(f"Error with {i}")
                 try:
