@@ -9,7 +9,9 @@ MediTron’s domain-adaptive pre-training corpus **GAP-Replay** combines 48.1B t
 - **Medical <u>P</u>apers**: full-text articles extracted from 5M publicly available PubMed and PubMed Central papers.
 - **<u>Replay</u> dataset**: general domain data distilled to compose 1\% of the entire corpus.
 
-<img src="../figures/gap-replay.png" alt="GAP-Replay" width="100%"/>
+<p align="center">
+<img src="../figures/gap-replay.png" alt="GAP-Replay" width="60%"/>
+</p>  
 
 ### 1. Downloading GAP-Replay
 
