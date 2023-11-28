@@ -4,19 +4,10 @@ from functools import partial
 from multiprocessing import Pool
 from typing import Callable, Optional
 
-import torch
-
+import datasets
 from tqdm.auto import tqdm
 from torch.utils.data import IterableDataset
 from sentencepiece import SentencePieceProcessor
-import datasets
-
-# from utils import format_number
-
-
-def format_number(x):
-    return int(x)
-
 
 
 def load(name: str, data_dir: str, explicit_datadir: bool = False, **kwargs):
@@ -28,23 +19,19 @@ def load(name: str, data_dir: str, explicit_datadir: bool = False, **kwargs):
 def loads(name: str, names: list[str], desc: str = "",
           explicit_datadir: bool = False, **kwargs) -> list[datasets.Dataset]:
 
-    with Pool(processes=8) as pool:
-        func = partial(load, name, explicit_datadir=explicit_datadir, **kwargs)
-        it = tqdm(pool.imap(func, names), desc=desc, total=len(names))
-        result = list(it)
-    return result
+    return [load(name, data_dir, explicit_datadir=explicit_datadir, **kwargs)
+            for data_dir in tqdm(names, desc=desc)]
 
 
 class DownsampledDataset(IterableDataset):
-    def __init__(self, source: IterableDataset, indices: set[int],
+    def __init__(self, source: datasets.Dataset, indices: set[int],
                  update_fn: Callable[[dict], dict] = lambda x: x):
         self.source = source
         self.indices = indices
         self.update = update_fn
         assert len(self.indices) <= len(self.source)
         if len(indices) > 0:
-            assert 0 <= min(self.indices)
-            assert max(self.indices) < len(source)
+            assert 0 <= min(self.indices) and max(self.indices) < len(source)
 
     def __iter__(self):
         if len(self.indices) == 0:
@@ -57,15 +44,33 @@ class DownsampledDataset(IterableDataset):
         return len(self.indices)
 
 
+class DownsampledStreamingDataset(IterableDataset):
+    def __init__(self, source: IterableDataset, keep: float = 1.0,
+                 update_fn: Callable[[dict], dict] = lambda x: x):
+        assert 0 < keep <= 1.0
+        self.source = source
+        self.keep = keep
+        self.update = update_fn
+
+    def __iter__(self):
+        for elem in tqdm(self.source, desc="Downsampling"):
+            if random.random() <= self.keep:
+                yield self.update(elem)
+
+
 class Dataset(IterableDataset):
-    def __init__(self, source: IterableDataset,
+    def __init__(self, source: datasets.Dataset | datasets.IterableDataset,
                  update_fn: Callable[[dict], dict] = lambda x: x):
         self.source = source
         self.update = update_fn
 
-    def downsample(self, keep_frac: float = 1.0) -> DownsampledDataset:
-        assert 0.0 < keep_frac <= 1.0
-        keep = int(len(self) * keep_frac)
+    def downsample(self, keep: int | float = 1.0) -> DownsampledDataset:
+        if self.is_streaming:
+            assert isinstance(keep, float), "Streaming dataset can only be downsampled by a factor, not absolute number"
+            assert 0 < keep <= 1
+            return DownsampledStreamingDataset(self.source, keep, self.update)
+        if isinstance(keep, float):
+            keep = int(len(self)*keep)
         indices = list(range(len(self)))
         indices = set(random.sample(indices, keep))
         return DownsampledDataset(self.source, indices, self.update)
@@ -77,7 +82,17 @@ class Dataset(IterableDataset):
         yield from map(self.update, self.source)
 
     def __len__(self) -> int:
-        return len(self.source)
+        try:
+            return len(self.source)
+        except TypeError:
+            if self.source.dataset_size is None:
+                raise ValueError(f"Streaming dataset {self.source.info.dataset_name}"
+                                 "has no length information")
+            return dataset.dataset_size
+
+    @property
+    def is_streaming(self) -> bool:
+        return isinstance(self.source, datasets.IterableDataset)
 
 
 class DownsampledCollection(DownsampledDataset):
@@ -121,7 +136,6 @@ class Collection(Dataset):
 
     def estimate_tokens(self, vocab_file: Path, verbose: bool = True) -> int:
         token_count = 0
-        char_count = 0
         read_documents = 0
         total_documents = len(self)
         tokenizer = SentencePieceProcessor(model_file=str(vocab_file))
@@ -133,7 +147,6 @@ class Collection(Dataset):
                 for tokens in it:
                     # update vars
                     token_count += len(tokens)
-                    char_count += sum(map(len, tokens))
                     read_documents += 1
                     avg_tokens_per_document = token_count/read_documents
                     expected_total_tokens = avg_tokens_per_document*total_documents
@@ -141,8 +154,8 @@ class Collection(Dataset):
                     if verbose:
                         pbar.update()
                         pbar.set_postfix(
-                            avg_tokens_per_document=format_number(avg_tokens_per_document),
-                            expected_total_tokens=format_number(expected_total_tokens)
+                            avg_tokens_per_document=avg_tokens_per_document,
+                            expected_total_tokens=expected_total_tokens
                         )
             except KeyboardInterrupt:
                 print("Token estimation interrupted by user!")
@@ -150,17 +163,23 @@ class Collection(Dataset):
                     pbar.close()
 
         if verbose:
-            expected_total_char = total_documents*char_count/read_documents
-            print("Document count:", read_documents, "i.e.", format_number(read_documents))
-            print("Total number of tokens read:", token_count, "i.e.", format_number(token_count))
-            print("Estimated total number of tokens:", expected_total_tokens, "i.e.", format_number(expected_total_tokens))
-            print("Estimated total number of characters:", expected_total_char, "i.e.", format_number(expected_total_char))
+            print("Document count:", read_documents)
+            print("Total number of tokens read:", token_count)
+            print("Estimated total number of tokens:", expected_total_tokens)
         return expected_total_tokens
 
-    def downsample(self, keep_frac: float = 1.0, verbose: bool = True,
+    def downsample(self, keep: int | float = 1.0, verbose: bool = True,
                    priority: Optional[list[str]] = None) -> DownsampledCollection:
-        assert 0.0 < keep_frac <= 1.0
-        keep = int(len(self) * keep_frac)
+
+        if self.is_streaming:
+            assert priority is None or len(priority) == 0
+            assert isinstance(keep, float)
+            assert 0 < keep <= 1.0
+            keeps = {name: keep for name in self.sources}
+            return DownsampledCollection(self.sources, keeps)
+
+        if isinstance(keep, float):
+            keep = int(len(self)*keep)
         if priority is None:
             priority = []
         priority = set(priority)
@@ -199,6 +218,10 @@ class Collection(Dataset):
     def __len__(self) -> int:
         return sum(map(len, self.sources.values()))
 
+    @property
+    def is_streaming(self) -> bool:
+        return any(dset.is_streaming for dset in self.sources.values())
+
 
 def _starcoder_update(dset_name: str, sample: dict) -> dict:
     sample["text"] = sample.pop("content")
@@ -209,9 +232,9 @@ def _starcoder_update(dset_name: str, sample: dict) -> dict:
 
 class StarcoderDataset(Collection):
     def __init__(self, ignore_git: bool = False, jupyter_only: bool = False,
-                 cache_dir: Optional[Path] = None):
+            cache_dir: Optional[Path] = None, streaming: bool = False):
         # get langlist
-        with open("langs.txt") as f:
+        with open("starcoder.txt") as f:
             langs = list(map(lambda line: line.strip(), f))
         if ignore_git:
             langs = list(filter(lambda lang: "git" not in lang, langs))
@@ -221,7 +244,7 @@ class StarcoderDataset(Collection):
         # init loaders
         dsets = loads("bigcode/starcoderdata", langs, cache_dir=cache_dir,
                       explicit_datadir=True, desc="Getting starcoder loaders",
-                      split="train")
+                      split="train", streaming=streaming)
         sources = dict(zip(langs, dsets))
         sources = {lang: Dataset(dset, update_fn=partial(_starcoder_update, lang))
                    for lang, dset in sources.items()}
@@ -235,16 +258,18 @@ def _pajama_update(part_name: str, sample: dict) -> dict:
 
 
 class RedPajamaDataset(Collection):
-    def __init__(self, llama2_subset: bool = True,
+    def __init__(self, llama2_subset: bool = True, streaming: bool = False,
                  cache_dir: Optional[Path] = None):
         # get names
         names = ["wikipedia", "arxiv", "book", "stackexchange"]
         if not llama2_subset:
             names += ["c4", "common_crawl", "github"]
 
+
         # init loaders
         dsets = loads("togethercomputer/RedPajama-Data-1T", names, split="train",
-                      desc="Getting pajama loaders", cache_dir=cache_dir)
+                      desc="Getting pajama loaders", cache_dir=cache_dir,
+                      streaming=streaming)
         sources = dict(zip(names, dsets))
         sources = {name: Dataset(dset, update_fn=partial(_pajama_update, name))
                    for name, dset in sources.items()}
@@ -259,19 +284,19 @@ def _falcon_update(sample: dict) -> dict:
 
 
 class FalconDataset(Dataset):
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Optional[Path] = None, streaming: bool = False):
         print("Getting Falcon refined-web dataset")
         super().__init__(
             datasets.load_dataset("tiiuae/falcon-refinedweb", cache_dir=cache_dir,
-                                  split="train"),
+                                  split="train", streaming=streaming),
             update_fn=_falcon_update
         )
 
 
 class Llama2Dataset(Collection):
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Optional[Path] = None, streaming: bool = False):
         super().__init__({
-            # "starcoder": StarcoderDataset(cache_dir=cache_dir),
-            # "falcon": FalconDataset(cache_dir=cache_dir),
-            "redpajama": RedPajamaDataset(cache_dir=cache_dir)
+            "starcoder": StarcoderDataset(cache_dir=cache_dir, streaming=streaming),
+            "falcon": FalconDataset(cache_dir=cache_dir, streaming=streaming),
+            "redpajama": RedPajamaDataset(cache_dir=cache_dir, streaming=streaming)
         })
