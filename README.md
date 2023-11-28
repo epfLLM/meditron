@@ -226,17 +226,7 @@ For detailed instructions to deploy meditron models and have an interactive chat
 If you use this software, please cite it:
 <pre>
 @software{epfmedtrn,
-  author       = {Zeming Chen and
-                  Antoine Bonnet and
-                  Angelika Romanou and
-                  Francesco Salvi  and
-                  Alejandro Hernández Cano  and
-                  Kyle Matoba  and
-                  Alexandre Sallinen and
-                  Syrielle Montariol and
-                  Vinitra Swamy and
-                  Antoine Bosselut  and
-                  Martin Jaggi},
+  author = {Zeming Chen and Alejandro Hernández-Cano and Angelika Romanou and Antoine Bonnet and Kyle Matoba and Francesco Salvi and Matteo Pagliardini and Simin Fan and Andreas Köpf and Amirkeivan Mohtashami and Alexandre Sallinen and Alireza Sakhaeirad and Vinitra Swamy and Igor Krawczuk and Deniz Bayazit and Axel Marmet and Syrielle Montariol and Mary-Anne Hartley and Martin Jaggi and Antoine Bosselut},
   title = {MediTron-70B: Scaling Medical Pretraining for Large Language Models},
   month = November,
   year = 2023,
