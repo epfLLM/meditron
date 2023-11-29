@@ -19,7 +19,7 @@ Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
 - **Developed by:** [EPFL LLM Team](https://huggingface.co/epfl-llm)
 - **Model type:** Causal decoder-only transformer language model
 - **Language(s):** English (mainly)
-- **Model License:** [LLAMA 2 COMMUNITY LICENSE AGREEMENT](https://huggingface.co/meta-llama/Llama-2-70b/raw/main/LICENSE.txt)
+- **Model License:** [LLAMA 2 COMMUNITY LICENSE AGREEMENT](https://ai.meta.com/llama/license/)
 - **Code License:** [APACHE 2.0 LICENSE](LICENSE)
 - **Continue-pretrained from model:** [Llama-2-70B](https://huggingface.co/meta-llama/Llama-2-70b)
 - **Context length:**  4k tokens
