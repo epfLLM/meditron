@@ -34,9 +34,13 @@ Therefore, to get that data we use:
 python starcoder.py --keep=0.09 --out=/pure-mlo-scratch/alhernan/data/starcoder/starcoder_41B.json
 ```
 
-To downsample the `experience_replay` data, use `experience_replay.py`.
+To downsample the `experience_replay` data, use `replay.py`.
 We estimate around 1T tokens in the dataset (using the 460B estimation from starcoder + official estimations from the falcon web data and redpajama data).
 To get around 400M tokens, we run:
 ```
-python experience_replay.py --keep=0.0004 --out=/pure-mlo-scratch/alhernan/data/replay/replay-400M.json
+python replay.py --keep=0.0004 --out=/pure-mlo-scratch/alhernan/data/replay/replay-400M.json
 ```
+
+- If you wish, you can also set a seed value for determinstic generation using the `--seed` argument.
+- If you wish to avoid downloading the entire Falcon, RedPajama and Starcoder dataset you can use the `--streaming` flag.
+  Note that this will slow down the dataset generation but will avoid storing any unneeded data.
