@@ -55,13 +55,13 @@ def detect_lang(text, sample_size=10000):
     return language
 
 
-def _concatenate_sections(article):
+def concatenate_sections(article): 
     '''
     Concatenate sections of an article into a single text.
     '''
     text = ''
-    for section_name in article['text'].keys():
-        section = article['text'][section_name]
+    for section_name in article['content'].keys():
+        section = article['content'][section_name]
         text += f'# {section_name}\n\n{section}'
     return text
 
@@ -198,7 +198,7 @@ def truncate(text, starters=None, removers=None, stoppers=None):
 # ================= AAFP =================
 
 def process_aafp(guideline): 
-    text = guideline['text'].strip()
+    text = guideline['content'].strip()
 
     # Filter guidelines which support another institution's recommendations
     if 'The AAFP supports' in text:
@@ -263,11 +263,11 @@ def process_cco(guideline):
 
 
 def process_cdc_diseases(guideline):
-    if guideline['text'].strip().split('\n')[0].strip() == '### Disease Directory':
+    if guideline['content'].strip().split('\n')[0].strip() == '### Disease Directory':
         return None
     stoppers = ["More Information", "After Travel"]
     removers = ["insurance", " | CDC"]
-    text = guideline['text'].strip()
+    text = guideline['content'].strip()
     text = truncate(text, removers=removers, starters=['###'], stoppers=stoppers)
 
     title = text.split('\n')[0][3:].strip()
@@ -312,7 +312,7 @@ def process_cdc(guideline):
 
 
 def process_cma(guideline): 
-    text = guideline['text'].strip()
+    text = guideline['content'].strip()
     title = text.split('\n')[0]
     starters = [
         'key information', '### key information', '### 1. what', 
@@ -401,7 +401,7 @@ def process_cps(guideline):
 
 def process_drugs(guideline): 
     guideline['title'] = guideline['title'].split(' - ')[0].strip()
-    text = guideline['text'].strip()
+    text = guideline['content'].strip()
     removers = ['[Medical', '===', '---', '###', '* [', '[', 
                  'Always consult your healthcare provider', 
                  'Frequently asked', 'More about', 'Further information']
@@ -413,7 +413,7 @@ def process_drugs(guideline):
     text = re.sub(r'--', '', text)
     text = clean(text)
     guideline['text'] = text
-    del guideline['text']
+    del guideline['content']
     return guideline
 
 
@@ -482,7 +482,7 @@ def process_icrc(guideline):
 
 
 def process_idsa(guideline): 
-    text = guideline['text'].strip()
+    text = guideline['content'].strip()
     title = text.split('\n')[0]
     if 'This new guideline is currently in development' in text:
         return None
@@ -520,7 +520,7 @@ def process_idsa(guideline):
 def process_magic(guideline):
     # Text was loaded by chunks, remove some loading chunks
     text = ''
-    chunks = guideline['text'].strip().split('Loading Data...\n')
+    chunks = guideline['content'].strip().split('Loading Data...\n')
     chunk_removers = ['Write remark here', 'Write header here']
     for _, chunk in enumerate(chunks): 
         if not any([x in chunk for x in chunk_removers]):
@@ -601,9 +601,9 @@ def process_magic(guideline):
 
 
 def process_mayo(guideline): 
-    text = clean(_concatenate_sections(guideline))
+    text = clean(concatenate_sections(guideline))
     text = '\n'.join([line for line in text.split('\n') if 'MayoClinic' not in line])
-    guideline = {'title': guideline['name'], 'text': text}
+    guideline = {'title':guideline['name'], 'text':text}
     return guideline
 
 
@@ -613,15 +613,15 @@ def process_mayo(guideline):
 def process_nice(guideline):
     content = {}
     excluders = ['advice', 'committee', 'implementation', 'team', 'update']
-    for section_name, section in guideline['text'].items():
+    for section_name, section in guideline['content'].items():
         if 'discussion' in section_name.lower():
             content[section_name] = section
         if not any(excluder in section_name.lower() for excluder in excluders):
             content[section_name] = section
     if len(content) == 0:
         return None
-    guideline['text'] = content
-    text = _concatenate_sections(guideline)
+    guideline['content'] = content
+    text = concatenate_sections(guideline)
     new_text = ''
     if guideline['name']: 
         new_text += guideline['name'] + '\n\n'
@@ -642,7 +642,7 @@ def process_rch(guideline):
     guideline = {
         'title': guideline['name'],
         'url': guideline['url'],
-        'text': guideline['text'],
+        'text': guideline['content'],
     }
     return guideline
 
@@ -835,21 +835,28 @@ def process_guidelines(source, in_path, out_path, english_only=True):
     processed_guidelines = []
     for g in tqdm(guidelines, f'Processing {source} guidelines'):
         new_guid = _process(g)
+
         if not new_guid:
             filtered += 1
             continue
-        if english_only:
+
+        if english_only: 
             if detect_lang(new_guid['text']) != 'en':
                 non_english += 1
                 continue
+
         dedup_str = _hash_for_dedup(new_guid['text'])
         if dedup_str in dedup_strings:
             duplicates += 1
             continue
         dedup_strings.add(dedup_str)
-
-        guid = {'source': source.split('_')[0]}
-        guid.update(new_guid)
+        guid = {'source': source.split('_')[0], 
+                'title': new_guid.get('title', None),
+                'clean_text': new_guid['text'],
+                'raw_text': g.get('text', g.get('content', None)),
+                'url': new_guid.get('url', None),
+                'overview': new_guid.get('overview', None),
+                }
         processed_guidelines.append(guid)
     with open(out_path, 'w') as f_out:
         f_out.write('\n'.join([json.dumps(guid) for guid in processed_guidelines]))
@@ -859,7 +866,7 @@ def process_guidelines(source, in_path, out_path, english_only=True):
         print(f'Filtered out {filtered} guidelines during processing.')
     if duplicates > 0:
         print(f'Filtered out {duplicates} duplicates.')
-    print(f'Processed {len(processed_guidelines)} guidelines from {source} [].')
+    print(f'Processed {len(processed_guidelines)} guidelines from {source}.')
 
 
 def print_statistics(in_path): 
@@ -885,8 +892,8 @@ def print_statistics(in_path):
     for source in sources:
         print(f'\nSource: {source}')
         articles = sources[source]
-        num_lines = [len(article['text'].split('\n')) for article in articles]
-        num_words = [len(article['text'].split(' ')) for article in articles]
+        num_lines = [len(article['clean_text'].split('\n')) for article in articles]
+        num_words = [len(article['clean_text'].split(' ')) for article in articles]
         total_lines += np.sum(num_lines)
         total_words += np.sum(num_words)
         print(f'Number of guidelines: {len(articles)}')
@@ -900,22 +907,19 @@ def print_statistics(in_path):
     print(f'Total number of words: {total_words:,}')
 
 
-def combine_guidelines(dir_path, out_path, sources=None): 
+def combine_guidelines(dir_path, out_path, sources=None, min_chars=10): 
     '''
     Combine all guidelines from a directory into a single file.
     '''
     guidelines = []
-    jsonl_files = sorted([_ for _ in os.listdir(dir_path) if (_.endswith('.jsonl') and 'guideline' not in _)])
+    k = "clean_text"
+    jsonl_files = sorted([file for file in os.listdir(dir_path) if (file.endswith('.jsonl') and 'guideline' not in file)])
     for file in jsonl_files:
-        sources = file.replace('.jsonl', '')
-        if sources and not any([source in file for source in sources]):
+        if sources and not any([s in file for s in sources]):
             continue
         source_guidelines = read_jsonl(os.path.join(dir_path, file))
+        source_guidelines = [g for g in source_guidelines if g[k] and len(g[k]) > min_chars]
         guidelines.extend(source_guidelines)
-    # guidelines = [g for g in guidelines if g['text'] and len(g['text']) > 10]
-    # k = "content"
-    k = "text"
-    guidelines = [g for g in guidelines if g[k] and len(g[k]) > 10]
     with open(out_path, 'w') as f_out:
         f_out.write('\n'.join([json.dumps(guideline) for guideline in guidelines]))
 
@@ -1029,20 +1033,16 @@ if __name__ == "__main__":
         if not os.path.exists(args.raw_dir): 
             raise ValueError(f'{args.raw_dir} does not exist')
         print(f'Processing guidelines from {len(PROCESSORS.keys())} sources in {args.raw_dir}')
-        keys = sorted(PROCESSORS.keys())
-        num_keys = len(keys)
-        for i, source in enumerate(keys):
-            # i = 0; source = keys[i]
-            # in_path = f'{args.raw_dir}/{source}.jsonl'
-            in_path = os.path.join(args.raw_dir, f'{source}.jsonl')
+        for i, source in enumerate(PROCESSORS.keys()):
+            in_path = f'{args.raw_dir}/{source}.jsonl'
             out_path = f'{args.save_dir}/{source}.jsonl'
             if not os.path.exists(in_path):
-                print(f'[{i} | {num_keys}] {source} guidelines not found at {in_path}')
+                print(f'[{i} | {len(PROCESSORS.keys())}] {source} guidelines not found at {in_path}')
                 continue
             if os.path.exists(out_path):
-                print(f'[{i} | {num_keys}] {source} guidelines already processed [at {out_path}], skipping')
+                print(f'[{i} | {len(PROCESSORS.keys())}] {source} guidelines already processed, skipping')
                 continue
-            print(f'[{i} | {num_keys}] Processing {source} guidelines')
+            print(f'[{i} | {len(PROCESSORS.keys())}] Processing {source} guidelines')
             process_guidelines(source, in_path, out_path)
     else:
         guid_path = args.save_dir + 'guidelines.jsonl'
