@@ -174,7 +174,7 @@ python3 -m fastchat.serve.openai_api_server \
 
 ### Third Party UI
 
-Next, you can use a third-party UI for OpenAI APIs to interact with the model. You will need to sepcify the host as `http://localhost:8000/v1/chat/completions`.
+Next, you can use a third-party UI for OpenAI APIs to interact with the model. You will need to specify the host as `http://localhost:8000/v1/chat/completions`.
 
 Here is a UI platform we used, called [BetterChat](https://github.com/ztjhz/)
 Get the version we modified for this UI:
