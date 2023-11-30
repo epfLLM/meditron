@@ -32,13 +32,13 @@ Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and F
 
 ## How to use
 
-You can load Meditron model directly from the [HuggingFace model hub](https://huggingface.co/epfl-llm/meditron-70B) as follows:
+You can load the Meditron model directly from the [HuggingFace model hub](https://huggingface.co/epfl-llm/meditron-70B) as follows:
 
 ```python
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-tokenizer = AutoTokenizer.from_pretrained("epfl-llm/meditron-70B")
-model = AutoModelForCausalLM.from_pretrained("epfl-llm/meditron-70B")
+tokenizer = AutoTokenizer.from_pretrained("epfl-llm/meditron-70b")
+model = AutoModelForCausalLM.from_pretrained("epfl-llm/meditron-70b")
 ```
 
 <img width=100% src="figures/meditron-pipeline.png" alt="Pipeline" title="Pipeline">
