@@ -39,80 +39,48 @@ Since FastChat does not officially support Meditron models, there are several st
 
    ```python
    register_conv_template(
-            Conversation(
+        Conversation(
             name="one_shot_medical",
             system_message=system_msg_meditron,
             roles=("User", "Assistant"),
             messages=(
-                ("User","What happens if listeria is left untreated?"),
+                (
+                    "User",
+                    "What happens if listeria is left untreated?",
+                ),
                 (
                     "Assistant",
                     """If listeria infection, or listeriosis, is left untreated, it can lead to severe health complications, particularly in certain high-risk groups. Here's a general overview of the potential outcomes:
 
-    1. Spread of the Infection: Untreated listeriosis can spread beyond the gut to other parts of the body, including the nervous system. This can lead to more severe conditions like meningitis (inflammation of the membranes surrounding the brain and spinal cord) and septicemia (a serious blood infection).
-    2. Increased Risk for Certain Groups: Pregnant women, newborns, the elderly, and individuals with weakened immune systems are at a higher risk of severe complications. In pregnant women, listeriosis can lead to miscarriage, stillbirth, premature delivery, or life-threatening infection of the newborn.
-    3. Neurological Effects: Listeriosis can cause severe neurological symptoms like headaches, stiff neck, confusion, loss of balance, and convulsions, especially when the infection spreads to the nervous system.
-    4. Long-Term Health Impacts: For some, particularly those with pre-existing health conditions or weakened immune systems, the health impacts of listeriosis can be long-lasting and may not fully resolve even with treatment.
-    5. Fatalities: In severe cases, particularly among high-risk groups, listeriosis can be fatal.
+   1. Spread of the Infection: Untreated listeriosis can spread beyond the gut to other parts of the body, including the nervous system. This can lead to more severe conditions like meningitis (inflammation of the membranes surrounding the brain and spinal cord) and septicemia (a serious blood infection).
+   2. Increased Risk for Certain Groups: Pregnant women, newborns, the elderly, and individuals with weakened immune systems are at a higher risk of severe complications. In pregnant women, listeriosis can lead to miscarriage, stillbirth, premature delivery, or life-threatening infection of the newborn.
+   3. Neurological Effects: Listeriosis can cause severe neurological symptoms like headaches, stiff neck, confusion, loss of balance, and convulsions, especially when the infection spreads to the nervous system.
+   4. Long-Term Health Impacts: For some, particularly those with pre-existing health conditions or weakened immune systems, the health impacts of listeriosis can be long-lasting and may not fully resolve even with treatment.
+   5. Fatalities: In severe cases, particularly among high-risk groups, listeriosis can be fatal.
 
-    It's important to note that early diagnosis and appropriate treatment, typically with antibiotics, can greatly improve the prognosis for those with listeriosis. Therefore, seeking medical attention promptly if listeriosis is suspected is crucial."""
-                    )
-                ),
-                offset=2,
-                sep_style=SeparatorStyle.ADD_COLON_SINGLE,
-                sep="\n### ",
-                stop_str=["###", "<|im_start|>", "<|im_end|>", "$$$", "thank you for your help"]
-            )
-        )
+   It's important to note that early diagnosis and appropriate treatment, typically with antibiotics, can greatly improve the prognosis for those with listeriosis. Therefore, seeking medical attention promptly if listeriosis is suspected is crucial."""
+               )
+           ),
+           offset=2,
+           sep_style=SeparatorStyle.ADD_COLON_SINGLE,
+           sep="\n### ",
+           stop_str=["<\s>", "###", "Assistant:", "User:"]
+       )
+   )
     ```
 
     ```python
     register_conv_template(
         Conversation(
-            name="meditron",
+            name="zero_shot_medical",
             system_message=system_msg_meditron,
-            system_template="<|im_start|> system\n{system_message}<|im_end|>\n",
-            roles=("<|im_start|> user\n", "<|im_start|> assistant\n"),
-            sep="<|im_end|>\n",
-            sep_style=SeparatorStyle.NO_COLON_SINGLE,
-            stop_str=["###", "<|im_start|>", "<|im_end|>", "$$$", "thank you for your help"]
-        )
-    )
-    ```
-
-    ```python
-    register_conv_template(
-        Conversation(
-            name="one_shot",
-            system_message="A chat between a curious human and an artificial intelligence assistant. "
-            "The assistant gives helpful, detailed, and polite answers to the human's questions.",
-            roles=("Human", "Assistant"),
-            messages=(
-                (
-                    "Human",
-                    "Got any creative ideas for a 10 year old’s birthday?",
-                ),
-                (
-                    "Assistant",
-                    """Of course! Here are some creative ideas for a 10-year-old's birthday party:
-    1. Treasure Hunt: Organize a treasure hunt in your backyard or nearby park. Create clues and riddles for the kids to solve, leading them to hidden treasures and surprises.
-    2. Science Party: Plan a science-themed party where kids can engage in fun and interactive experiments. You can set up different stations with activities like making slime, erupting volcanoes, or creating simple chemical reactions.
-    3. Outdoor Movie Night: Set up a backyard movie night with a projector and a large screen or white sheet. Create a cozy seating area with blankets and pillows, and serve popcorn and snacks while the kids enjoy a favorite movie under the stars.
-    4. DIY Crafts Party: Arrange a craft party where kids can unleash their creativity. Provide a variety of craft supplies like beads, paints, and fabrics, and let them create their own unique masterpieces to take home as party favors.
-    5. Sports Olympics: Host a mini Olympics event with various sports and games. Set up different stations for activities like sack races, relay races, basketball shooting, and obstacle courses. Give out medals or certificates to the participants.
-    6. Cooking Party: Have a cooking-themed party where the kids can prepare their own mini pizzas, cupcakes, or cookies. Provide toppings, frosting, and decorating supplies, and let them get hands-on in the kitchen.
-    7. Superhero Training Camp: Create a superhero-themed party where the kids can engage in fun training activities. Set up an obstacle course, have them design their own superhero capes or masks, and organize superhero-themed games and challenges.
-    8. Outdoor Adventure: Plan an outdoor adventure party at a local park or nature reserve. Arrange activities like hiking, nature scavenger hunts, or a picnic with games. Encourage exploration and appreciation for the outdoors.
-    Remember to tailor the activities to the birthday child's interests and preferences. Have a great celebration!""",
-                ),
-            ),
-            offset=2,
+            roles=("User", "Assistant"),
             sep_style=SeparatorStyle.ADD_COLON_SINGLE,
             sep="\n### ",
-            stop_str=["###", "<|im_start|>", "<|im_end|>", "$$$", "thank you for your help"]
+            stop_str=["<\s>", "###", "Assistant:", "User:"]
         )
     )
-   ```
+    ```
 
 **For easy use, we have a version with modified content supporting medtrion.**
 
