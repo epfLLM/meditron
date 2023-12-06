@@ -134,4 +134,4 @@ fi
 
 echo inference.py $COMMON_ARGS
 python inference.py $COMMON_ARGS
-python acc.py $ACC_ARGS
+python evaluate.py $ACC_ARGS
