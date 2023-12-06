@@ -52,7 +52,7 @@ def tokenizer_param(tokenizer, target, shots=0, cot=False, task_type="mcq"):
     :param task_type: str, the type of answer to generate (mcq or open)
     """
     max_new_tokens = len(tokenizer(target, add_special_tokens=True)['input_ids'])
-    stop_seq = [tokenizer.eos_token, tokenizer.pad_token, "###", "$$$"]
+    stop_seq = [tokenizer.eos_token, tokenizer.pad_token, "###"]
 
     if not cot and task_type == "mcq":
         max_new_tokens = len(tokenizer(target[0], add_special_tokens=False)['input_ids'])
