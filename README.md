@@ -73,7 +73,7 @@ More details can be found in the [GAP-Replay documentation](gap-replay/README.md
 ## Training Procedure
 
 We used the [Megatron-LLM](https://github.com/epfLLM/Megatron-LLM) distributed training library, a derivative of Nvidia's Megatron LM project, to optimize training efficiency.
-Hardware consists of 16 nodes of 8x NVIDIA A100 (80GB) SXM GPUs connected by NVLink and NVSwitch with a single Nvidia ConnectX-6 DX network card and equipped with 2 x AMD EPYC 7543 32-Core Processors and 512 GB of RAM.
+The hardware consists of 16 nodes of 8x NVIDIA A100 (80GB) SXM GPUs connected by NVLink and NVSwitch with a single Nvidia ConnectX-6 DX network card and equipped with 2 x AMD EPYC 7543 32-Core Processors and 512 GB of RAM.
 The nodes are connected via RDMA over Converged Ethernet.
 
 Our three-way parallelism scheme uses the following:
@@ -187,22 +187,18 @@ We do not recommend using this model for natural language generation in a produc
 
 ### Downstream Use
 
-Meditron-70B is a foundation model that can be finetuned, instruction-tuned, or RLHF-tuned for specific downstream tasks and applications.
-The main way we have used this model is finetuning for downstream question-answering tasks, but we encourage using this model for additional applications.
+Meditron-70B and Meditron-7B are both foundation models without finetuning or instruction-tuning. They can be finetuned, instruction-tuned, or RLHF-tuned for specific downstream tasks and applications.
+There are two ways we have used this model for downstream question-answering tasks.
+1. We apply in-context learning with k demonstrations (3 or 5 in our paper) added to the prompt.
+2. We finetuned the models for downstream question-answering tasks using specific training sets.
 
-Specific formatting needs to be followed to prompt our finetuned models, including the  `<|im_start|>`, `<|im_end|>` tags, and  `system`, `question`, `answer`  identifiers.
+We encourage and look forward to the adaption of the base model for more diverse applications.
 
-```python
-"""
-<|im_start|>system
-{system_message}<|im_end|>
-<|im_start|>question
-{prompt}<|im_end|>
-<|im_start|>answer
-"""
-```
+If you want a more interactive way to prompt the model, we recommend using a high-throughput and memory-efficient inference engine with a UI that supports chat and text generation.
 
-**Note**: the above formatting is not a requirement if you use your own formatting option for the finetuning of the model.
+You can check out our deployment guide below, where we used [FastChat](https://github.com/lm-sys/FastChat) with [vLLM](https://github.com/vllm-project/vllm). We collected generations for our qualitative analysis through an interactive UI platform, [BetterChatGPT](https://github.com/ztjhz/BetterChatGPT). Here is the prompt format we used as an example:
+
+<img width=70% src="figures/prompt_example.png" alt="qualitative-analysis-prompt" title="Qualitative Analysis Prompt">
 
 ## Medical Benchmark Inference & Evaluation
 
