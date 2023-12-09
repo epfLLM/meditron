@@ -123,7 +123,7 @@ def format_prompt(prompt, args):
         "If you don't know the answer to a question, please don't share false information."""
         return f"<|im_start|> system\n{system_msg}<|im_end|>\n <|im_start|> user\n{prompt}<|im_end|>\n <|im_start|> assistant\n"
     elif np.any([x in args.checkpoint_name for x in ["medmcqa", "medqa", "pubmedqa"]]):
-        return f"<|im_start|> system\n<|im_end|>\n <|im_start|> question\n{prompt}<|im_end|>\n <|im_start|> answer\n"
+        return f"<|im_start|>question\n{prompt}<|im_end|>\n<|im_start|>answer\n"
     elif "med42" in args.checkpoint_name:
         if "Question:" in prompt:
             question = prompt.split("Question:")[1].strip()
