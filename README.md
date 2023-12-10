@@ -189,7 +189,7 @@ We do not recommend using this model for natural language generation in a produc
 
 Meditron-70B and Meditron-7B are both foundation models without finetuning or instruction-tuning. They can be finetuned, instruction-tuned, or RLHF-tuned for specific downstream tasks and applications.
 There are two ways we have used this model for downstream question-answering tasks.
-1. We apply in-context learning with k demonstrations (3 or 5 in our paper) added to the prompt.
+1. We applied in-context learning with k demonstrations (3 or 5 in our paper) added to the prompt.
 2. We finetuned the models for downstream question-answering tasks using specific training sets.
 
 We encourage and look forward to the adaption of the base model for more diverse applications.
