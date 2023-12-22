@@ -912,14 +912,20 @@ def combine_guidelines(dir_path, out_path, sources=None, min_chars=10):
     Combine all guidelines from a directory into a single file.
     '''
     guidelines = []
-    k = "clean_text"
     jsonl_files = sorted([file for file in os.listdir(dir_path) if (file.endswith('.jsonl') and 'guideline' not in file)])
     for file in jsonl_files:
         if sources and not any([s in file for s in sources]):
             continue
+        print(file)
         source_guidelines = read_jsonl(os.path.join(dir_path, file))
-        source_guidelines = [g for g in source_guidelines if g[k] and len(g[k]) > min_chars]
-        guidelines.extend(source_guidelines)
+        if 'clean_text' in source_guidelines[0].keys():
+            for g in source_guidelines:
+                g_new = g.copy()
+                g_new['text'] = g['clean_text']
+                del g_new['raw_text']
+                del g_new['clean_text']
+                if len(g['text']) > min_chars:
+                    guidelines.append(g_new)
     with open(out_path, 'w') as f_out:
         f_out.write('\n'.join([json.dumps(guideline) for guideline in guidelines]))
 

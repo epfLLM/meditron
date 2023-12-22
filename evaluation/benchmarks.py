@@ -6,9 +6,12 @@ import os
 import json
 import random
 import pandas as pd
-
+import numpy as np
+from openai import OpenAI
 from tqdm import tqdm
 from datasets import load_dataset, Dataset, load_from_disk
+
+from evaluate import benchmark_output_type
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COT_PROMPTS = {
@@ -76,7 +79,8 @@ class Benchmark:
         :param test_data: HuggingFace Dataset, the test data.
         :param generations: HuggingFace Dataset, the generations.
         :param subsets: list of str (optional), the subsets of the data to download from the HuggingFace hub.
-        :param has_instruction: bool, whether the dataset already contains instructions.
+        :param has_instructions: bool, whether the dataset already contains instructions.
+        :param shuffle_params: dict with key 'seed' and int value to shuffle question choices (default: None, no shuffling)
         :param local_path: str (optional), the path to a directory holding train and test json local data files.
         """
         self.name = name
@@ -89,6 +93,7 @@ class Benchmark:
         self.generations = None
         self.subsets = None
         self.has_instructions = False
+        self.shuffle_params = {}
         self.local_path = None
 
     def load_from_local(self):
@@ -138,7 +143,7 @@ class Benchmark:
             raise ValueError("Default Huggingface loader failed for benchmark {}. \
                              Try implementing a custom load_from_hub function.".format(self.name))
 
-    def load_data(self, partition='train', local_path=None):
+    def load_data(self, partition='train', local_path=None, shuffle_params=None):
         """
         Loads benchmark data from a local directory, or from the HuggingFace hub if not yet downloaded.
         Based on the input partition type, instantiates the respective class attribute.
@@ -146,8 +151,11 @@ class Benchmark:
         :param path: str (optional), the path to the benchmark data.
         :param partition: str, the split of the data: train / test
         :param local_path: str (optional), the path to a directory holding train and test json local data files.
+        :param shuffle_params: dict with key 'seed' and int value to shuffle question choices (default: None, no shuffling)
         """
         print('='*50 +f'\nLoading data for benchmark {self.name}.\n')
+        if shuffle_params is not None and benchmark_output_type[self.name] == 'mcq': 
+            self.shuffle_params = shuffle_params
         if partition not in self.splits:
             raise ValueError("Please provide a valid partition split: {}".format(self.splits))
         if local_path:
@@ -208,7 +216,8 @@ class Benchmark:
             if partition == 'train':
                 self.train_data = self.train_data.map(self.custom_preprocessing)
             elif partition in ['test', 'validation']:
-                self.test_data = self.test_data.map(self.custom_preprocessing)
+                self.test_data = self.test_data.map(
+                    lambda x: self.custom_preprocessing(x, **self.shuffle_params))
             else:
                 raise ValueError("Please provide a valid partition split: train or test")
         except Exception as e:
@@ -219,6 +228,7 @@ class Benchmark:
             """
             Wraps a pre-processing function (dict -> dict) specific to the benchmark.
             Needs to be overriden in the extended class.
+            For MCQ-type benchmarks, answer choices random shuffling requires a 'seed' argument. 
 
             The return dictionary must contains keys 'prompt' & 'answer' for inference to work.
             """
@@ -248,24 +258,33 @@ class Benchmark:
         else:
             raise ValueError("Please provide a valid partition split: {}".format(self.splits))
 
-    def add_few_shot(self, shots=8, seed=42, load_cot=False):
-        def _get_question(prompt):
-            if 'Question:' in prompt:
-                return prompt.split('Question:')[1]
-            else:
-                return prompt
+    def add_few_shot(self, shots=8, seed=42, load_cot=False, dynamic=False):
+    
+        if dynamic:
+            self.add_embeddings(model='text-embedding-ada-002', shots=shots)
 
-        if load_cot:
-            assert self.name in COT_PROMPTS, "No CoT prompts found for {}.".format(self.name)
-            cot_path = os.path.join(ROOT_DIR, 'evaluation', 'prompt_cot', f"{COT_PROMPTS[self.name]}.jsonl")
-            samples = pd.read_json(cot_path, lines=True).to_dict(orient='records')
-            demonstrations = random.sample(samples, shots)
-            few_shot_prompt = '\n\n'.join([
-                f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
-                for demo in demonstrations])
+        if load_cot: 
+            _get_question = lambda prompt: prompt.split('Question:')[1] if 'Question:' in prompt else prompt
+            if dynamic: 
+                demonstrations = self.test_data['knn_demos']
+            else: 
+                assert self.name in COT_PROMPTS, "No CoT prompts found for {}.".format(self.name)
+                cot_path = os.path.join(ROOT_DIR, 'evaluation', 'prompt_cot', f"{COT_PROMPTS[self.name]}.jsonl")
+                samples = pd.read_json(cot_path, lines=True).to_dict(orient='records')
+                demonstrations = random.sample(samples, k=shots)
+                few_shot_prompt = '\n\n'.join([
+                    f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
+                    for demo in demonstrations])
+                _add_few_shot = lambda row: row.update({'prompt': f"{few_shot_prompt}\n\n{row['prompt']}"})
+                self.test_data = self.test_data.map(_add_few_shot)
+
         else:
-            assert self.train_data is not None, "Please load the train data first."
-            demonstrations = self.train_data.shuffle(seed=seed).select(range(shots))
+            if dynamic: 
+                assert self.test_data is not None, "Please load the test data first."
+                demonstrations = self.test_data['knn_demos']
+            else:
+                assert self.train_data is not None, "Please load the train data first."
+                demonstrations = self.train_data.shuffle(seed=seed).select(range(shots))
             few_shot_prompt = '\n\n'.join([
                 '{}\nThe answer is: {}'.format(
                     demo['prompt'],
@@ -276,6 +295,29 @@ class Benchmark:
             return row
 
         self.test_data = self.test_data.map( _add_few_shot)
+
+    def add_embeddings(self, model='text-embedding-ada-002', shots=8): 
+        """
+        Preparating dataset for KNN dynamic few-shot.
+        Embeds all questions using OpenAI model and selects 
+        all KNN (training) demonstrations for each (test) question.
+        """
+        client = OpenAI()
+        def _add_embedding(row):
+            text = row['prompt'].replace("\n", " ")
+            row['embedding'] = client.embeddings.create(input = [text], model=model).data[0].embedding
+            return row
+        self.train_data.map(_add_embedding)
+        self.test_data.map(_add_embedding)
+
+        def _add_KNN_exemplars(row): 
+            similarities = self.train_data.map(lambda x: {'similarity': np.dot(x['embedding'], row['embedding'])})
+            knn_idx = similarities.sort('similarity', reverse=True).select(range(shots))['similarity']
+            demonstrations = self.train_data.select(knn_idx)
+            row['knn_demos'] = demonstrations
+            return row
+    
+        self.test_data.map(_add_KNN_exemplars)
 
     def add_generations(self, data):
         """
@@ -303,7 +345,6 @@ class Benchmark:
         self.generations.to_json(gen_path, orient="records")
         print("Stored {} generations to the following path: {}".format(self.name, gen_path))
 
-
     def load_generations(self, checkpoint_name):
         """
         Loads the generations from the respective directory.
@@ -314,7 +355,6 @@ class Benchmark:
                              Please run inference first.".format(self.name, path))
         print("Loading {} generations from the following path: {}".format(self.name, path))
         self.generations = pd.read_json(path)
-
 
 class MedMCQA(Benchmark):
     '''
@@ -332,9 +372,11 @@ class MedMCQA(Benchmark):
         self.num_options = 4
 
     @staticmethod
-    def custom_preprocessing(row):
+    def custom_preprocessing(row, seed=None):
         options = [row['opa'], row['opb'], row['opc'], row['opd']]
         answer = int(row['cop'])
+        if seed is not None: 
+            options, answer = shuffle_options(options, answer, seed=seed)
         row['prompt'] = format_mcq(row['question'], options)
         row['gold'] = chr(ord('A')+answer) if answer in [0, 1, 2, 3] else None
         return row
@@ -358,8 +400,7 @@ class PubMedQA(Benchmark):
 
     @staticmethod
     def custom_preprocessing(row):
-
-        row["prompt"] = row['QUESTION'] #  f"{row['CONTEXTS'][0]}\n{row['QUESTION']}"
+        row["prompt"] = row['QUESTION']
         row["gold"] = row['final_decision']
         row["long_answer"] = row["LONG_ANSWER"]
         return row
@@ -411,7 +452,6 @@ class PubMedQAValidation(Benchmark):
         row["gold"] = row['final_decision']
         return row
 
-
 class MedQA(Benchmark):
     '''
     MedQA is a dataset for solving medical problems collected from the professional medical board exams.
@@ -427,13 +467,13 @@ class MedQA(Benchmark):
         self.num_options = 5
 
     @staticmethod
-    def custom_preprocessing(row):
-        choices = [opt['value'] for opt in row['options']]
-        row["prompt"] = format_mcq(row['question'], choices)
-        for opt in row['options']:
-            if opt['value'] == row['answer']:
-                row['gold'] = opt['key']
-                break
+    def custom_preprocessing(row, seed=None):
+        options = [opt['value'] for opt in row['options']]
+        answer = options.index(row['answer'])
+        if seed is not None: 
+            options, answer = shuffle_options(options, answer, seed=seed)
+        row["prompt"] = format_mcq(row['question'], options)
+        row["gold"] = row['options'][answer]['key']
         return row
 
 class MedQA4(Benchmark):
@@ -451,13 +491,26 @@ class MedQA4(Benchmark):
         self.num_options = 4
 
     @staticmethod
-    def custom_preprocessing(row):
-        choices = [row['options'][opt] for opt in row['options']]
-        row["prompt"] = format_mcq(row['question'], choices)
+    def custom_preprocessing(row, seed=None):
+        '''
+        TODO: CHECK THIS ONE. FORMAT IS UNCLEAR.
+
+        Previous version: 
+        options = [row['options'][opt] for opt in row['options']]
+        #if seed is not None: 
+        #   options, answer = shuffle_options(options, answer, seed=seed)
+        row["prompt"] = format_mcq(row['question'], options)
         for opt in row['options']:
             if row['options'][opt] == row['answer']:
                 row['gold'] = opt
                 break
+        '''
+        options = [row['options'][opt] for opt in row['options']]
+        answer = options.index(row['answer'])
+        if seed is not None: 
+            options, answer = shuffle_options(options, answer, seed=seed)
+        row["prompt"] = format_mcq(row['question'], options)
+        row["gold"] = ['A', 'B', 'C', 'D'][answer]
         return row
 
 
@@ -499,17 +552,30 @@ class TruthfulQA(Benchmark):
         self.num_options = 4
 
     @staticmethod
-    def custom_preprocessing(row):
+    def custom_preprocessing(row, seed=None):
+        '''
+        Previous version:
+        
         options = row['mc1_targets']['choices']
         labels = row['mc1_targets']['labels']
         gold_option = options[labels.index(1)]
         options.remove(gold_option)
-        wrong_options = random.choices(options, k=3)
+        wrong_options = random.choices(options, k=3) ##### THIS SAMPLES WITH REPLACEMENT!!! Use random.sample() instead. 
+                                                     ##### Might have boosted our TruthfulQA results by limiting number of available options
         choices = [gold_option] + wrong_options
         random.shuffle(choices)
         gold_id = choices.index(gold_option)
         row["prompt"] = format_mcq(row['question'], choices)
         row["gold"] = ['A', 'B', 'C', 'D'][gold_id]
+        '''
+        choices = row['mc1_targets']['choices']
+        answer = row['mc1_targets']['labels'].index(1)
+        gold_choice = choices[answer]
+        choices.remove(gold_choice)
+        options = [gold_choice] + random.sample(choices, k=3)
+        if seed: options, answer = shuffle_options(options, answer, seed=seed)
+        row["prompt"] = format_mcq(row['question'], choices)
+        row["gold"] = ['A', 'B', 'C', 'D'][answer]
         return row
 
 class MMLU(Benchmark):
@@ -545,10 +611,13 @@ class MMLU(Benchmark):
         self.num_options = 4
 
     @staticmethod
-    def custom_preprocessing(row):
+    def custom_preprocessing(row, seed=None):
         options = [row['A'], row['B'], row['C'], row['D']]
+        answer = options.index(row['target'])
+        if seed: 
+            options, answer = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['input'], options)
-        row["gold"] = row['target']
+        row["gold"] = options[answer]
         row["subset"] = row["subset"]
         return row
 
@@ -617,6 +686,22 @@ class Blurb(Benchmark):
         return entities
 
 
+def shuffle_options(options, answer, seed=42): 
+    """
+    Randomly shuffles options and updates answer accordingly. 
+
+    ::param options:: list of str, original options
+    ::param answer:: int, index of gold answer among original options
+    ::return options:: list of str, shuffled options
+    ::return answer:: int, index of gold answer among shuffled options
+    """
+    random.seed(seed)
+    order = {i: x for i, x in zip(range(len(options)), range(len(options)))}
+    random.shuffle(order)
+    shuffled_options = [options[idx] for idx in order.values()]
+    shuffled_answer = order[answer]
+    return shuffled_options, shuffled_answer
+
 
 def format_mcq(question, options):
     """
@@ -633,6 +718,7 @@ def format_mcq(question, options):
 
     :param question: str, the question
     :param options: list of str, the options
+    :param seed: int, seed for random shuffling of answer choices (default: None --> no shuffling)
     :return: str, the formatted question
     """
     if not question.endswith('?') and not question.endswith('.'):

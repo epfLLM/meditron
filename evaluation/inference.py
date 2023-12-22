@@ -16,6 +16,46 @@ from benchmarks import benchmark_factory, load_instruction
 logger = logging.getLogger("meditron.evaluation.inference")
 logger.setLevel(logging.INFO)
 
+
+'''
+MedPrompt adaptation: 
+
+TODO LIST
+1. Dynamic few-shot: 
+    - Embed all training questions using OpenAI's 'text-embedding-ada-002' 
+    - Select top K exemplars (K = args.shots) with highest similarity to the question at hand for each test question
+NOTE: in the original paper, potential candidates for KNN exemplars are QA pairs 'aced' by the model in 0-shot
+For now, this is not implemented, because it requires to run inference on the dataset beforehand. 
+However, we might be able to collect correct QA pairs from our past 0-shot evaluations runs
+
+2. Self-consistency (Ensemble): 
+    - DONE: Add choice shuffling through Benchmark.load_data() and custom_preprocessing for MCQ benchmarks to debias final test questions
+    - DONE: Check shuffling random seed for reproduciblity 
+    - Double-check that shuffling runs
+
+
+ALGORITHM
+Input: Development data D, Test question Q 
+
+A) PREPROCESSING:
+for each question q in D:
+    Get an embedding vector vq for q.
+    Generate a chain-of-thought Cq and an answer Aq with the LLM. 
+    if Answer Aq is correct then
+        Store the embedding vector vq, chain-of-thought Cq, and answer Aq.
+        
+B) INFERENCE:
+Compute the embedding vQ for the test question Q.
+Select the K most similar examples {(vQi , CQi , AQi )}_{i=1}^K from the preprocessed training data using KNN,
+    with the distance function as the cosine similarity: dist(vq,vQ)=1−⟨vq,vQ⟩/(||vq||*||vQ||)
+Format the K examples as context C for the LLM. 
+for i=1 to K:
+    Shuffle the answer choices of the test question.
+    Generate a chain-of-thought Cqk and an answer Akq with the LLM and context C.
+Compute the majority vote of the generated answers A_Final = mode({Akq}_{k=1}^K)
+
+'''
+
 INSTRUCTIONS = {
     'truthfulqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'truthfulqa', 'cot_col': 'exp'},
     'medmcqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'medmcqa', 'cot_col': 'exp'},
@@ -190,7 +230,8 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
     :param partition: str, the partition to run the preparation pipeline on
     :param args: argparse.Namespace, the arguments to run the preparation pipeline
     """
-    data_obj.load_data(partition=partition, local_path=args.local_path)
+    shuffle_params = {'seed': seed} if args.shuffle_choices else None
+    data_obj.load_data(partition=partition, local_path=args.local_path, **shuffle_params)
     data_obj.preprocessing(partition=partition)
 
     instructions = INSTRUCTIONS_SIMPLE if args.instruction == "simple" else INSTRUCTIONS
@@ -209,11 +250,18 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
             data_obj.load_data(partition='train', local_path=args.local_path)
             data_obj.preprocessing(partition='train')
 
-        logging.info(f'FEW SHOTS: {args.shots}')
-        data_obj.add_few_shot(
-            shots=args.shots,
-            seed=seed,
-            load_cot=args.cot)
+        if args.dynamic: 
+            logging.info(f'KNN Dynamic {args.shots}-shot')
+            data_obj.add_dynamic_few_shot(
+                shots=args.shots, 
+                seed=seed)
+
+        else: 
+            logging.info(f'FEW SHOTS: {args.shots}')
+            data_obj.add_few_shot(
+                shots=args.shots, 
+                seed=seed, 
+                load_cot=args.cot)
 
     if args.cot:
         data_obj.add_instruction(
@@ -226,12 +274,26 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
             partition=partition)
     return prompt_name
 
+def build_checkpoint_name(args): 
+    if args.cot and args.checkpoint_name in ["med42", "clinical-camel", "mistral", "mpt", "falcon", "zephyr"]:
+        args.checkpoint_name = "cot" + args.checkpoint_name
+    if args.sc_cot:
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
+        args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
+    if args.shuffle_choices: 
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "cot-shuffle")
+    if args.dynamic: 
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "cot-dynamic")
+    args.checkpoint_name = args.checkpoint_name.replace("sc-cot-dynamic-shuffle", "medprompt")
+
 
 def main(args):
     """
     Runs the inference pipeline on a given checkpoint name and benchmark.
 
     :param args: argparse.Namespace, the arguments to run the inference pipeline
+
+    TODO: Add MedPrompt logic for benchmark preparation (dynamic few-shot)
     """
     partition = INSTRUCTIONS[args.benchmark]['partition']
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint)
@@ -280,12 +342,7 @@ def main(args):
             logging.info(f'Finished branch {i+1}/{args.sc_branch}, {len(predictions)} generations collected.')
     else:
         predictions = benchmark_infer(args, tokenizer, data_obj.test_data, client)
-
-    if args.cot and args.checkpoint_name in ["med42", "clinical-camel", "mistral", "mpt", "falcon", "zephyr"]:
-        args.checkpoint_name = "cot" + args.checkpoint_name
-    if args.sc_cot:
-        args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
-        args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
+    build_checkpoint_name(args)
     data_obj.add_generations(data=predictions)
     data_obj.save_generations(checkpoint_name=args.checkpoint_name, shots=args.shots)
     logging.info(f'{len(predictions)} generations store for checkpoint: {args.checkpoint_name}.')
@@ -333,6 +390,16 @@ if __name__ == "__main__":
                         type=int,
                         default=10,
                         help="Number of branches for self-consistency chain-or-thought")
-
+    parser.add_argument('--dynamic',
+                        action='store_true',
+                        help="Whether to use dynamic few-shot by selecting exemplars with KNN")
+    parser.add_argument('--shuffle_choices',
+                        action='store_true',
+                        help="Whether to shuffle choices during testing")
+    parser.add_argument('--medprompt',
+                        action='store_true',
+                        help="Activates MedPrompt strategy (sc_cot, dynamic few-shot and shuffle_choices)")
     args = parser.parse_args()
+    if args.medprompt: 
+        args.sc_cot, args.dynamic, args.shuffle_choices = True, True, True
     main(args)
