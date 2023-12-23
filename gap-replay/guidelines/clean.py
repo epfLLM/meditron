@@ -916,7 +916,6 @@ def combine_guidelines(dir_path, out_path, sources=None, min_chars=10):
     for file in jsonl_files:
         if sources and not any([s in file for s in sources]):
             continue
-        print(file)
         source_guidelines = read_jsonl(os.path.join(dir_path, file))
         source_guidelines = [g for g in source_guidelines if g[k] and len(g[k]) > min_chars]
         guidelines.extend(source_guidelines)
