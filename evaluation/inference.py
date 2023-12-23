@@ -246,32 +246,22 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
 
     if args.shots > 0:
         if not args.cot:
-            logging.info('Load train data for few shot learning')
+            logging.info('Load train data for few-shot learning')
             data_obj.load_data(partition='train', local_path=args.local_path)
             data_obj.preprocessing(partition='train')
 
-        if args.dynamic: 
-            logging.info(f'KNN Dynamic {args.shots}-shot')
-            data_obj.add_dynamic_few_shot(
-                shots=args.shots, 
-                seed=seed)
+        logging.info(f'Few-shot prompting: {args.shot}-shot, dynamic = {str(args.shots)}')
+        data_obj.add_few_shot(
+            shots=args.shots, 
+            load_cot=args.cot, 
+            dynamic=args.dynamic,
+            seed=seed)
 
-        else: 
-            logging.info(f'FEW SHOTS: {args.shots}')
-            data_obj.add_few_shot(
-                shots=args.shots, 
-                seed=seed, 
-                load_cot=args.cot)
-
-    if args.cot:
-        data_obj.add_instruction(
-            instruction=instruction,
-            partition=partition,
-            cot_column = INSTRUCTIONS[args.benchmark].get('cot_col', None))
-    else:
-        data_obj.add_instruction(
-            instruction=instruction,
-            partition=partition)
+    cot_col = INSTRUCTIONS[args.benchmark].get('cot_col', None) if args.cot else None
+    data_obj.add_instruction(
+        instruction=instruction,
+        partition=partition,
+        cot_column=cot_col)
     return prompt_name
 
 def build_checkpoint_name(args): 
@@ -286,14 +276,11 @@ def build_checkpoint_name(args):
         args.checkpoint_name = args.checkpoint_name.replace("cot", "cot-dynamic")
     args.checkpoint_name = args.checkpoint_name.replace("sc-cot-dynamic-shuffle", "medprompt")
 
-
 def main(args):
     """
     Runs the inference pipeline on a given checkpoint name and benchmark.
 
     :param args: argparse.Namespace, the arguments to run the inference pipeline
-
-    TODO: Add MedPrompt logic for benchmark preparation (dynamic few-shot)
     """
     partition = INSTRUCTIONS[args.benchmark]['partition']
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint)

@@ -259,9 +259,11 @@ class Benchmark:
             raise ValueError("Please provide a valid partition split: {}".format(self.splits))
 
     def add_few_shot(self, shots=8, seed=42, load_cot=False, dynamic=False):
-    
+        """
+        Adds few-shot demonstrations to the data. 
+        """
         if dynamic:
-            self.add_embeddings(model='text-embedding-ada-002', shots=shots)
+            self.prepare_dynamic_few_shot(model='text-embedding-ada-002', shots=shots)
 
         if load_cot: 
             _get_question = lambda prompt: prompt.split('Question:')[1] if 'Question:' in prompt else prompt
@@ -272,11 +274,11 @@ class Benchmark:
                 cot_path = os.path.join(ROOT_DIR, 'evaluation', 'prompt_cot', f"{COT_PROMPTS[self.name]}.jsonl")
                 samples = pd.read_json(cot_path, lines=True).to_dict(orient='records')
                 demonstrations = random.sample(samples, k=shots)
-                few_shot_prompt = '\n\n'.join([
-                    f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
-                    for demo in demonstrations])
-                _add_few_shot = lambda row: row.update({'prompt': f"{few_shot_prompt}\n\n{row['prompt']}"})
-                self.test_data = self.test_data.map(_add_few_shot)
+            few_shot_prompt = '\n\n'.join([
+                f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
+                for demo in demonstrations])
+            _add_few_shot = lambda row: row.update({'prompt': f"{few_shot_prompt}\n\n{row['prompt']}"})
+            self.test_data = self.test_data.map(_add_few_shot)
 
         else:
             if dynamic: 
@@ -289,23 +291,19 @@ class Benchmark:
                 '{}\nThe answer is: {}'.format(
                     demo['prompt'],
                     demo['gold']) for demo in demonstrations])
+            _add_few_shot = lambda row: row.update({'prompt': f"{few_shot_prompt}\n\n{row['prompt']}"})
+            self.test_data = self.test_data.map( _add_few_shot)
 
-        def _add_few_shot(row):
-            row['prompt'] = '{}\n\n{}'.format(few_shot_prompt, row['prompt'])
-            return row
-
-        self.test_data = self.test_data.map( _add_few_shot)
-
-    def add_embeddings(self, model='text-embedding-ada-002', shots=8): 
+    def prepare_dynamic_few_shot(self, model='text-embedding-ada-002', shots=8): 
         """
         Preparating dataset for KNN dynamic few-shot.
         Embeds all questions using OpenAI model and selects 
-        all KNN (training) demonstrations for each (test) question.
+        KNN (training) demonstrations for each (test) question.
         """
-        client = OpenAI()
+        openai_client = OpenAI()
         def _add_embedding(row):
             text = row['prompt'].replace("\n", " ")
-            row['embedding'] = client.embeddings.create(input = [text], model=model).data[0].embedding
+            row['embedding'] = openai_client.embeddings.create(input = [text], model=model).data[0].embedding
             return row
         self.train_data.map(_add_embedding)
         self.test_data.map(_add_embedding)
@@ -492,19 +490,6 @@ class MedQA4(Benchmark):
 
     @staticmethod
     def custom_preprocessing(row, seed=None):
-        '''
-        TODO: CHECK THIS ONE. FORMAT IS UNCLEAR.
-
-        Previous version: 
-        options = [row['options'][opt] for opt in row['options']]
-        #if seed is not None: 
-        #   options, answer = shuffle_options(options, answer, seed=seed)
-        row["prompt"] = format_mcq(row['question'], options)
-        for opt in row['options']:
-            if row['options'][opt] == row['answer']:
-                row['gold'] = opt
-                break
-        '''
         options = [row['options'][opt] for opt in row['options']]
         answer = options.index(row['answer'])
         if seed is not None: 
@@ -517,7 +502,7 @@ class MedQA4(Benchmark):
 class MedicationQA(Benchmark):
     '''
     MedicationQA is a benchmark to measure whether a language model is truthful in generating answers to questions
-    Huggingface card: https://huggingface.co/datasets/truthful_qa
+    Huggingface card: https://huggingface.co/datasets/truehealth/medicationqa
     '''
     def __init__(self, name='medicationqa') -> None:
         super().__init__(name)
@@ -540,7 +525,7 @@ class MedicationQA(Benchmark):
 class TruthfulQA(Benchmark):
     '''
     TruthfulQA is a dataset of consumer health questions about medications.
-    Huggingface card: https://huggingface.co/datasets/truehealth/medicationqa
+    Huggingface card: https://huggingface.co/datasets/EleutherAI/truthful_qa_mc
     '''
     def __init__(self, name='truthfulqa') -> None:
         super().__init__(name)
@@ -553,27 +538,13 @@ class TruthfulQA(Benchmark):
 
     @staticmethod
     def custom_preprocessing(row, seed=None):
-        '''
-        Previous version:
-        
-        options = row['mc1_targets']['choices']
-        labels = row['mc1_targets']['labels']
-        gold_option = options[labels.index(1)]
-        options.remove(gold_option)
-        wrong_options = random.choices(options, k=3) ##### THIS SAMPLES WITH REPLACEMENT!!! Use random.sample() instead. 
-                                                     ##### Might have boosted our TruthfulQA results by limiting number of available options
-        choices = [gold_option] + wrong_options
-        random.shuffle(choices)
-        gold_id = choices.index(gold_option)
-        row["prompt"] = format_mcq(row['question'], choices)
-        row["gold"] = ['A', 'B', 'C', 'D'][gold_id]
-        '''
         choices = row['mc1_targets']['choices']
         answer = row['mc1_targets']['labels'].index(1)
         gold_choice = choices[answer]
         choices.remove(gold_choice)
         options = [gold_choice] + random.sample(choices, k=3)
-        if seed: options, answer = shuffle_options(options, answer, seed=seed)
+        if seed is not None: 
+            options, answer = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['question'], choices)
         row["gold"] = ['A', 'B', 'C', 'D'][answer]
         return row
@@ -614,7 +585,7 @@ class MMLU(Benchmark):
     def custom_preprocessing(row, seed=None):
         options = [row['A'], row['B'], row['C'], row['D']]
         answer = options.index(row['target'])
-        if seed: 
+        if seed is not None: 
             options, answer = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['input'], options)
         row["gold"] = options[answer]
@@ -699,7 +670,7 @@ def shuffle_options(options, answer, seed=42):
     order = {i: x for i, x in zip(range(len(options)), range(len(options)))}
     random.shuffle(order)
     shuffled_options = [options[idx] for idx in order.values()]
-    shuffled_answer = order[answer]
+    shuffled_answer = None if answer is None else order[answer]
     return shuffled_options, shuffled_answer
 
 
