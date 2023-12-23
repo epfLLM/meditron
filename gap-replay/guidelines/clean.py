@@ -918,14 +918,8 @@ def combine_guidelines(dir_path, out_path, sources=None, min_chars=10):
             continue
         print(file)
         source_guidelines = read_jsonl(os.path.join(dir_path, file))
-        if 'clean_text' in source_guidelines[0].keys():
-            for g in source_guidelines:
-                g_new = g.copy()
-                g_new['text'] = g['clean_text']
-                del g_new['raw_text']
-                del g_new['clean_text']
-                if len(g['text']) > min_chars:
-                    guidelines.append(g_new)
+        source_guidelines = [g for g in source_guidelines if g[k] and len(g[k]) > min_chars]
+        guidelines.extend(source_guidelines)
     with open(out_path, 'w') as f_out:
         f_out.write('\n'.join([json.dumps(guideline) for guideline in guidelines]))
 
