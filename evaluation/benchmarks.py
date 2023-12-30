@@ -176,7 +176,7 @@ class Benchmark:
             else:
                 if self.subsets is None:
                     if partition == 'train':
-                        self.train_data = load_dataset(self.path, split=partition)
+                        self.train_data = load_dataset( self.path, split=partition)
                     elif partition in ['test', 'validation']:
                         self.test_data = load_dataset(self.path, split=partition)
                 else:
@@ -212,10 +212,15 @@ class Benchmark:
         :param _preprocess: function: dict -> dict, the preprocessing function to apply.
         :param partition: str, the split of the data: train / test
         """
+        def _init_order(row):
+            row['order'] = None
+            return row
         try:
             if partition == 'train':
+                self.train_data = self.train_data.map(_init_order)
                 self.train_data = self.train_data.map(self.custom_preprocessing)
             elif partition in ['test', 'validation']:
+                self.test_data = self.test_data.map(_init_order)
                 self.test_data = self.test_data.map(
                     lambda x: self.custom_preprocessing(x, **self.shuffle_params))
             else:
@@ -261,19 +266,32 @@ class Benchmark:
     def add_few_shot(self, shots=8, seed=42, load_cot=False, dynamic=False):
         """
         Adds few-shot demonstrations to the data. 
+            - If CoT + KNN few-shot: generate CoT demonstrations for KNN examplars
+            - If CoT + random few-shot: sample randomly from a set of CoT demonstrations.
+            - If no CoT + KNN few-shot: sample KNN examplars from training data.
+            - If no CoT + random few-shot: sample randomly from training data.
+            
+        :param shots: int, the number of demonstrations to add.
+        :param seed: int, the seed for random sampling of demonstrations.
+        :param load_cot: bool, whether to load CoT demonstrations or not.
+        :param dynamic: bool, whether to use dynamic few-shot or not.
         """
         if dynamic:
             self.prepare_dynamic_few_shot(model='text-embedding-ada-002', shots=shots)
 
-        if load_cot: 
-            _get_question = lambda prompt: prompt.split('Question:')[1] if 'Question:' in prompt else prompt
+        if load_cot:
+
             if dynamic: 
+                # TODO: Add self-generated CoT for dynamic few-shot or reference CoT
                 demonstrations = self.test_data['knn_demos']
-            else: 
+
+            else:
                 assert self.name in COT_PROMPTS, "No CoT prompts found for {}.".format(self.name)
                 cot_path = os.path.join(ROOT_DIR, 'evaluation', 'prompt_cot', f"{COT_PROMPTS[self.name]}.jsonl")
                 samples = pd.read_json(cot_path, lines=True).to_dict(orient='records')
                 demonstrations = random.sample(samples, k=shots)
+
+            _get_question = lambda prompt: prompt.split('Question:')[1] if 'Question:' in prompt else prompt
             few_shot_prompt = '\n\n'.join([
                 f"Question: {_get_question(demo['prompt'])}\n{demo['gold']}"
                 for demo in demonstrations])
@@ -282,23 +300,25 @@ class Benchmark:
 
         else:
             if dynamic: 
-                assert self.test_data is not None, "Please load the test data first."
-                demonstrations = self.test_data['knn_demos']
+                demonstrations = self.test_data['knn_demos'] # KNN few-shot
             else:
                 assert self.train_data is not None, "Please load the train data first."
-                demonstrations = self.train_data.shuffle(seed=seed).select(range(shots))
+                demonstrations = self.train_data.shuffle(seed=seed).select(range(shots)) # Random few-shot
             few_shot_prompt = '\n\n'.join([
                 '{}\nThe answer is: {}'.format(
                     demo['prompt'],
                     demo['gold']) for demo in demonstrations])
-            _add_few_shot = lambda row: row.update({'prompt': f"{few_shot_prompt}\n\n{row['prompt']}"})
+            
+            def _add_few_shot(row):
+                row['prompt'] = f"{few_shot_prompt}\n\n{row['prompt']}"
+                return row
             self.test_data = self.test_data.map( _add_few_shot)
 
     def prepare_dynamic_few_shot(self, model='text-embedding-ada-002', shots=8): 
         """
-        Preparating dataset for KNN dynamic few-shot.
-        Embeds all questions using OpenAI model and selects 
-        KNN (training) demonstrations for each (test) question.
+        Prepare dataset for KNN dynamic few-shot.
+        Embeds all training prompts using OpenAI model. 
+        These embeddings are later used to find KNN examplars for each test question.
         """
         openai_client = OpenAI()
         def _add_embedding(row):
@@ -374,9 +394,9 @@ class MedMCQA(Benchmark):
         options = [row['opa'], row['opb'], row['opc'], row['opd']]
         answer = int(row['cop'])
         if seed is not None: 
-            options, answer = shuffle_options(options, answer, seed=seed)
+            options, answer, row['order'] = shuffle_options(options, answer, seed=seed)
         row['prompt'] = format_mcq(row['question'], options)
-        row['gold'] = chr(ord('A')+answer) if answer in [0, 1, 2, 3] else None
+        row['gold'] = chr(ord('A')+answer) if answer in range(4) else None
         return row
 
 
@@ -469,7 +489,7 @@ class MedQA(Benchmark):
         options = [opt['value'] for opt in row['options']]
         answer = options.index(row['answer'])
         if seed is not None: 
-            options, answer = shuffle_options(options, answer, seed=seed)
+            options, answer, row["order"] = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['question'], options)
         row["gold"] = row['options'][answer]['key']
         return row
@@ -493,7 +513,7 @@ class MedQA4(Benchmark):
         options = [row['options'][opt] for opt in row['options']]
         answer = options.index(row['answer'])
         if seed is not None: 
-            options, answer = shuffle_options(options, answer, seed=seed)
+            options, answer, row["order"] = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['question'], options)
         row["gold"] = ['A', 'B', 'C', 'D'][answer]
         return row
@@ -544,8 +564,8 @@ class TruthfulQA(Benchmark):
         choices.remove(gold_choice)
         options = [gold_choice] + random.sample(choices, k=3)
         if seed is not None: 
-            options, answer = shuffle_options(options, answer, seed=seed)
-        row["prompt"] = format_mcq(row['question'], choices)
+            options, answer, row["order"] = shuffle_options(options, answer, seed=seed)
+        row["prompt"] = format_mcq(row['question'], options)
         row["gold"] = ['A', 'B', 'C', 'D'][answer]
         return row
 
@@ -586,7 +606,7 @@ class MMLU(Benchmark):
         options = [row['A'], row['B'], row['C'], row['D']]
         answer = options.index(row['target'])
         if seed is not None: 
-            options, answer = shuffle_options(options, answer, seed=seed)
+            options, answer, row["order"] = shuffle_options(options, answer, seed=seed)
         row["prompt"] = format_mcq(row['input'], options)
         row["gold"] = options[answer]
         row["subset"] = row["subset"]
@@ -671,8 +691,20 @@ def shuffle_options(options, answer, seed=42):
     random.shuffle(order)
     shuffled_options = [options[idx] for idx in order.values()]
     shuffled_answer = None if answer is None else order[answer]
-    return shuffled_options, shuffled_answer
+    order = ''.join([str(x) for x in order.values()])
+    return shuffled_options, shuffled_answer, order
 
+def deshuffle(order, question, options): 
+    """
+    Deshuffles options based on random shuffling order. 
+
+    ::param order:: str, the order of shuffling
+    ::param question:: str, the question
+    ::param options:: list of str, the options
+    ::return question:: str, the question
+    ::return options:: list of str, the options
+    """
+    
 
 def format_mcq(question, options):
     """

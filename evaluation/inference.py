@@ -176,6 +176,7 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
             client, tokenizer,
             prompts, stop_seq, max_len,
             cot=args.cot, temperature=temperature)
+
         for prompt, out in zip(batch["prompt"], outputs):
             predictions.loc[predictions['prompt'] == prompt, 'output'] = out
         batch_counter += 1
