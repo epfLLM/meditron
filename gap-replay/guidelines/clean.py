@@ -912,7 +912,6 @@ def combine_guidelines(dir_path, out_path, sources=None, min_chars=10):
     Combine all guidelines from a directory into a single file.
     '''
     guidelines = []
-    k = "clean_text"
     jsonl_files = sorted([file for file in os.listdir(dir_path) if (file.endswith('.jsonl') and 'guideline' not in file)])
     for file in jsonl_files:
         if sources and not any([s in file for s in sources]):

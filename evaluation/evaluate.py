@@ -154,7 +154,7 @@ def verbose_metric_report(metric_dict):
     print(f'# Unable to find answer: {metric_dict["unable_to_find_answer"]}')
     print(f'# Ignored prompts: {len(metric_dict["ignored"])}')
 
-def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
+def eval(output_full, answer, order=None, shot=False, cot=False, answer_type="mcq"):
     output = output_full
     default = (2, output_full, answer)
 
@@ -185,6 +185,11 @@ def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
         output = clean_double_answer(output)
     elif answer_type == 'mcq':
         output = clean_mcq_answer(output)
+
+    if order is not None: 
+        deshuffler = {chr(ord('a') + i): chr(ord('a') + int(order[i])) for i in range(len(order))}
+        output = deshuffler[output]
+        answer = deshuffler[answer]
 
     if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'no']:
         return output == answer, output, answer
@@ -217,8 +222,9 @@ def accuracy_metric(data, **kwargs):
     for row in data:
         answer = row['gold'].lower()
         output = row['output'].lower()
+        order = None if "order" not in row else row['order']
         correct, pred, gold = eval(
-            output, answer, shot=shot,
+            output, answer, order=order, shot=shot,
             cot=kwargs["cot"], answer_type=kwargs["answer_type"])
 
         preds.append(pred)
@@ -256,9 +262,10 @@ def sc_cot_accuracy_metric(data, **kwargs):
         promtp = row['prompt'].lower()
         answer = row['gold'].lower()
         output = row['output'].lower()
+        order = None if "order" not in row else row['order']
 
         _, pred, gold = eval(
-            output, answer, shot=0,
+            output, answer, order=order, shot=0,
             cot=True, answer_type=kwargs["answer_type"])
 
         if promtp in matched:

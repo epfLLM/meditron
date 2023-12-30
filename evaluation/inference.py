@@ -180,6 +180,7 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
             client, tokenizer,
             prompts, stop_seq, max_len,
             cot=args.cot, temperature=temperature)
+
         for prompt, out in zip(batch["prompt"], outputs):
             predictions.loc[predictions['prompt'] == prompt, 'output'] = out
         batch_counter += 1
@@ -194,7 +195,8 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
     :param partition: str, the partition to run the preparation pipeline on
     :param args: argparse.Namespace, the arguments to run the preparation pipeline
     """
-    data_obj.load_data(partition=partition, local_path=args.local_path)
+    shuffle_params = {'seed': seed} if args.shuffle_choices else None
+    data_obj.load_data(partition=partition, local_path=args.local_path, **shuffle_params)
     data_obj.preprocessing(partition=partition)
 
     instructions = INSTRUCTIONS_SIMPLE if args.instruction == "simple" else INSTRUCTIONS
@@ -209,27 +211,35 @@ def benchmark_preparation(data_obj, partition, args, seed=1234):
 
     if args.shots > 0:
         if not args.cot:
-            logging.info('Load train data for few shot learning')
+            logging.info('Load train data for few-shot learning')
             data_obj.load_data(partition='train', local_path=args.local_path)
             data_obj.preprocessing(partition='train')
 
-        logging.info(f'FEW SHOTS: {args.shots}')
+        logging.info(f'Few-shot prompting: {args.shot}-shot, dynamic = {str(args.shots)}')
         data_obj.add_few_shot(
-            shots=args.shots,
-            seed=seed,
-            load_cot=args.cot)
+            shots=args.shots, 
+            load_cot=args.cot, 
+            dynamic=args.dynamic,
+            seed=seed)
 
-    if args.cot:
-        data_obj.add_instruction(
-            instruction=instruction,
-            partition=partition,
-            cot_column = INSTRUCTIONS[args.benchmark].get('cot_col', None))
-    else:
-        data_obj.add_instruction(
-            instruction=instruction,
-            partition=partition)
+    cot_col = INSTRUCTIONS[args.benchmark].get('cot_col', None) if args.cot else None
+    data_obj.add_instruction(
+        instruction=instruction,
+        partition=partition,
+        cot_column=cot_col)
     return prompt_name
 
+def build_checkpoint_name(args): 
+    if args.cot and args.checkpoint_name in ["med42", "clinical-camel", "mistral", "mpt", "falcon", "zephyr"]:
+        args.checkpoint_name = "cot" + args.checkpoint_name
+    if args.sc_cot:
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
+        args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
+    if args.shuffle_choices: 
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "cot-shuffle")
+    if args.dynamic: 
+        args.checkpoint_name = args.checkpoint_name.replace("cot", "cot-dynamic")
+    args.checkpoint_name = args.checkpoint_name.replace("sc-cot-dynamic-shuffle", "medprompt")
 
 def main(args):
     """
@@ -237,6 +247,10 @@ def main(args):
 
     :param args: argparse.Namespace, the arguments to run the inference pipeline
     """
+    if args.medprompt: 
+        if args.shots <= 0: 
+            raise ValueError("MedPrompt requires few-shot learning (shots > 0)")
+        args.sc_cot, args.dynamic, args.shuffle_choices = True, True, True
     partition = INSTRUCTIONS[args.benchmark]['partition']
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint)
     logging.info(f'Loaded tokenizer \n\tfrom checkpoint: {args.checkpoint}')
@@ -284,12 +298,7 @@ def main(args):
             logging.info(f'Finished branch {i+1}/{args.sc_branch}, {len(predictions)} generations collected.')
     else:
         predictions = benchmark_infer(args, tokenizer, data_obj.test_data, client)
-
-    if args.cot and args.checkpoint_name in ["med42", "clinical-camel", "mistral", "mpt", "falcon", "zephyr"]:
-        args.checkpoint_name = "cot" + args.checkpoint_name
-    if args.sc_cot:
-        args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
-        args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
+    build_checkpoint_name(args)
     data_obj.add_generations(data=predictions)
     data_obj.save_generations(checkpoint_name=args.checkpoint_name, shots=args.shots)
     logging.info(f'{len(predictions)} generations store for checkpoint: {args.checkpoint_name}.')
@@ -337,6 +346,14 @@ if __name__ == "__main__":
                         type=int,
                         default=10,
                         help="Number of branches for self-consistency chain-or-thought")
-
+    parser.add_argument('--dynamic',
+                        action='store_true',
+                        help="Whether to use dynamic few-shot by selecting exemplars with KNN")
+    parser.add_argument('--shuffle_choices',
+                        action='store_true',
+                        help="Whether to shuffle choices during testing")
+    parser.add_argument('--medprompt',
+                        action='store_true',
+                        help="Activates MedPrompt strategy (sc_cot, dynamic few-shot and shuffle_choices)")
     args = parser.parse_args()
     main(args)
