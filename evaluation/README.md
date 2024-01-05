@@ -16,6 +16,7 @@ The script first calls `inference.py` for inference. We use [vLLM](https://githu
         -e vllm (inference backend, currently support vllm only)
         -m 0 (in-context learning with multiple seeds; 0: disabled, 1: enabled)
         -t 0 (self-consistency cot prompting; 0: disabled, 1: enabled)
+        -d 32 (setting batch_size 32 for inference per gpu
 
 Example for in-context learning (5-shot, multiple-seeds) with `pubmedqa` and `meditron-70b`:
 
