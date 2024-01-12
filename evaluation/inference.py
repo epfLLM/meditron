@@ -163,7 +163,7 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
     assert client is not None, "Client must be provided for offline inference."
 
     inference_data = json.loads(predictions.to_json(orient='records'))
-    data_loader = DataLoader(inference_data, batch_size=16, shuffle=False)
+    data_loader = DataLoader(inference_data, batch_size=args.batch_size, shuffle=False)
 
     batch_counter = 0
     for batch in tqdm(data_loader, total=len(data_loader), position=0, leave=True):
@@ -337,6 +337,9 @@ if __name__ == "__main__":
                         type=int,
                         default=10,
                         help="Number of branches for self-consistency chain-or-thought")
-
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=16,
+                        help="Batch size for inference")
     args = parser.parse_args()
     main(args)
