@@ -1,8 +1,8 @@
-<img width=40% src="figures/meditron_LOGO.png" alt="MediTron logo" title="Meditron-logo">
+<img width=80% src="figures/spanishMedicaLLM_LOGO.png" alt="SpanishMedicalLLM logo" title="SpanishMedicaLLM-logo">
 
-Meditron is a suite of open-source medical Large Language Models (LLMs).
+SpanishMedicaLLM is a suite of open-source medical Large Language Models (LLMs).
 
-We release Meditron-7B and Meditron-70B, which are adapted to the medical domain from Llama-2 through continued pretraining on a comprehensively curated medical corpus, including selected PubMed papers and abstracts, a new dataset of internationally-recognized medical guidelines, and a general domain corpus.
+We release SpanishMedicaLLM -7B and SpanishMedicaLLM-70B, which are adapted to the medical domain from Llama-2 through continued pretraining on a comprehensively curated medical corpus, including selected PubMed papers and abstracts, a new dataset of internationally-recognized medical guidelines, and a general domain corpus.
 
 Meditron-70B, finetuned on relevant data, outperforms Llama-2-70B, GPT-3.5 and Flan-PaLM on multiple medical reasoning tasks.
 
