@@ -1,0 +1,80 @@
+aiodns==2.0.0
+aiohttp==3.6.2
+aiohttp-socks==0.5.5
+astroid==2.4.2
+async-timeout==3.0.1
+atomicwrites==1.4.0
+attrs @ file:///tmp/build/80754af9/attrs_1600298409949/work
+Automat @ file:///tmp/build/80754af9/automat_1600298431173/work
+autopep8==1.5.4
+bcrypt @ file:///C:/ci/bcrypt_1597936263757/work
+beautifulsoup4==4.9.2
+bs4==0.0.1
+cchardet==2.1.6
+certifi==2020.6.20
+cffi @ file:///C:/ci/cffi_1600699246375/work
+chardet==3.0.4
+colorama==0.4.3
+constantly==15.1.0
+cryptography @ file:///C:/ci/cryptography_1601046905460/work
+cssselect==1.1.0
+elasticsearch==7.9.1
+fake-useragent==0.1.11
+geographiclib==1.50
+geopy==2.0.0
+googletransx==2.4.2
+hyperlink @ file:///tmp/build/80754af9/hyperlink_1600360282274/work
+idna @ file:///tmp/build/80754af9/idna_1593446292537/work
+incremental==17.5.0
+iniconfig @ file:///tmp/build/80754af9/iniconfig_1596827328212/work
+isort==5.5.4
+itemadapter @ file:///tmp/build/80754af9/itemadapter_1601311215494/work
+itemloaders @ file:///tmp/build/80754af9/itemloaders_1599702791960/work
+jmespath @ file:///tmp/build/80754af9/jmespath_1594304593830/work
+lazy-object-proxy==1.4.3
+lxml @ file:///C:/ci/lxml_1594822774489/work
+mccabe==0.6.1
+more-itertools @ file:///tmp/build/80754af9/more-itertools_1598884071673/work
+multidict==4.7.6
+numpy==1.19.2
+packaging==20.4
+pandas==1.1.2
+parsel==1.5.2
+pluggy==0.13.1
+Protego @ file:///tmp/build/80754af9/protego_1598657180827/work
+py @ file:///tmp/build/80754af9/py_1593446248552/work
+pyasn1==0.4.8
+pyasn1-modules==0.2.8
+pycares==3.1.1
+pycodestyle==2.6.0
+pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
+PyDispatcher==2.0.5
+pydocstyle==5.0.2
+PyHamcrest @ file:///tmp/build/80754af9/pyhamcrest_1594390921726/work
+pylint==2.6.0
+pyOpenSSL @ file:///tmp/build/80754af9/pyopenssl_1594392929924/work
+pyparsing==2.4.7
+PySocks==1.7.1
+pytest==6.0.2
+pytest-runner==5.2
+python-dateutil==2.8.1
+python-socks==1.1.0
+pytz==2020.1
+pywin32==227
+queuelib==1.5.0
+requests==2.24.0
+schedule==0.6.0
+Scrapy @ file:///C:/ci/scrapy_1598649882180/work
+service-identity @ file:///tmp/build/80754af9/service_identity_1592494375577/work
+six==1.15.0
+snowballstemmer==2.0.0
+soupsieve==2.0.1
+toml @ file:///tmp/build/80754af9/toml_1592853716807/work
+twint==2.1.20
+Twisted==20.3.0
+urllib3==1.25.10
+w3lib==1.21.0
+wincertstore==0.2
+wrapt==1.12.1
+yarl==1.6.0
+zope.interface @ file:///C:/ci/zope.interface_1598606196502/work
