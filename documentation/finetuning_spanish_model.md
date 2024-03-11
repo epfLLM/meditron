@@ -46,6 +46,9 @@
  
  
  
+- Use a LLM for pretrainig model if we have enough data 
+ 
+ 
  
  **Research Objetive**
  - Analyze all spanish LLM model in hugginface repository built with fundation model as Llama2 or another
@@ -59,9 +62,6 @@
  Licences Open Source or similar for next deployment in several context
  - Was built with spanish corpus or part of them used spanish language
  
-
-
-
 
 # Resources about Spanish LLM Model
 

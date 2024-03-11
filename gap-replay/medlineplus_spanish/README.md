@@ -6,6 +6,13 @@
  site medlineplus.gov/spanish/ 
 -- Execute on console
 
+   **Extrac information from different sites as:**
+
+    * https://medlineplus.gov/spanish/encyclopedia.html
+    * https://medlineplus.gov/spanish/pruebas-de-laboratorio/
+    * https://medlineplus.gov/spanish/genetica/
+    * https://medlineplus.gov/spanish/healthtopics.html 
+
  scrapy crawl healthtopics -o output.json
 
 
