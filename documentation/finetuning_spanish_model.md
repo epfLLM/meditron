@@ -38,6 +38,14 @@
 - The most used model are 7B parameters size
 - Considers the time and memory for pre training LLama 2, Gemma or another model if you have enough data as state-of-the-art
 - Evaluate a finnetuning context first with the three LLM models in the above list
+- The Hackaton 2024 interview ["IA y Modelos del Lenguaje, retos y oportunidades con Elena González-Blanco @Microsoft | #Somos600M "](https://www.youtube.com/watch?v=JzpvHRrqtSU&t=1161s) since 44:50 to 45:41 minutes
+- Use a LLM for pretrainig model if we have enough data
+
+
+ 
+ 
+ 
+ 
 - Use a LLM for pretrainig model if we have enough data 
  
  
