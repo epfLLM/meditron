@@ -38,11 +38,7 @@
 - The most used model are 7B parameters size
 - Considers the time and memory for pre training LLama 2, Gemma or another model if you have enough data as state-of-the-art
 - Evaluate a finnetuning context first with the three LLM models in the above list
-- Use a LLM for pretrainig model if we have enough data
-
-
- 
- 
+- Use a LLM for pretrainig model if we have enough data 
  
  
  
@@ -58,9 +54,6 @@
  Licences Open Source or similar for next deployment in several context
  - Was built with spanish corpus or part of them used spanish language
  
-
-
-
 
 # Resources about Spanish LLM Model
 
