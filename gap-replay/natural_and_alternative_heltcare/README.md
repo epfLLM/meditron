@@ -5,3 +5,5 @@
 - 42 Medicine books
 - 16 Natural Medicine books
 - 130 youtube video about natural medicine
+
+**Elaborate by:** [Dariel Cabrera](https://github.com/dariel-cabrera)
