@@ -1,0 +1,12 @@
+vllm >= 0.2.1
+transformers @ git+https://github.com/huggingface/transformers.git@main
+datasets >= 2.14.6
+torch >= 2.0.1
+nltk
+tqdm
+sentencepiece # 0.1.97
+datasets # 2.14.6
+bitsandbytes
+accelerate
+loralib
+peft @ git+https://github.com/huggingface/peft.git

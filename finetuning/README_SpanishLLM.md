@@ -28,4 +28,15 @@ https://github.com/somosnlp/recursos/blob/main/hackathon_2024/
 https://huggingface.co/mrm8488/mbart-large-finetuned-opus-en-es-translation
 
 
+# IMPORTAN Merge LLM modules (Used on BioMistral) 
+
+  - [LLM-SLERP-Merge](https://github.com/Digitous/LLM-SLERP-Merge)
+  - [LLM-SLERP-Merge/slerpmergelm.py](https://github.com/Digitous/LLM-SLERP-Merge/blob/main/slerpmergelm.py)
+  - [Combating Evaluation Data Contamination in LLMs: Strategies for High-Quality Finetuning and Model Merging ](https://huggingface.co/blog/rishiraj/merge-models-without-contamination#combating-evaluation-data-contamination-in-llms-strategies-for-high-quality-finetuning-and-model-merging)
+
+#  IMPORTAN Check 
+- [DSPy: Programming—not prompting—Foundation Models](https://github.com/stanfordnlp/dspy)
+
+- [The Shift from Models to Compound AI Systems](https://bair.berkeley.edu/blog/2024/02/18/compound-ai-systems/)
+
 
