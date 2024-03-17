@@ -207,7 +207,7 @@ class Collection(Dataset):
             for name, n_keep in keeps.items():
                 size = len(self.sources[name])
                 print(name, n_keep, "out of", size, "i.e.",
-                      format_number(n_keep), "out of", format_number(size))
+                      int(n_keep), "out of", int(size))
 
         return DownsampledCollection(self.sources, keeps)
 
