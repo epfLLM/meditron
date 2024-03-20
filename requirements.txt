@@ -1,4 +1,5 @@
-vllm >= 0.2.1
+numpy
+#vllm >= 0.2.1
 transformers >= 4.34.0
 datasets >= 2.14.6
 torch >= 2.0.1
@@ -6,3 +7,5 @@ nltk
 tqdm
 sentencepiece # 0.1.97
 datasets # 2.14.6
+#torchvision
+#torchaudio
