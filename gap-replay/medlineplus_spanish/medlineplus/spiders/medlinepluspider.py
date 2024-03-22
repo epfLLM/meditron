@@ -1,7 +1,7 @@
 import scrapy
 
 class MedlinePlusSpider(scrapy.Spider):
-    name = 'medlineplus_spider'
+    name = 'medlinepluspider'
     allowed_domains = ['medlineplus.gov']
     start_urls = [
         'https://medlineplus.gov/spanish/encyclopedia.html',
