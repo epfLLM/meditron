@@ -37,7 +37,7 @@ more-itertools
 multidict==4.7.6
 numpy
 packaging==20.4
-pandas==1.1.2
+#pandas==1.1.2
 parsel==1.5.2
 pluggy==0.13.1
 Protego
