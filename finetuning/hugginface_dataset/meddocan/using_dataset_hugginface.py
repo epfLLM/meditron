@@ -30,7 +30,7 @@ import mysql.connector
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 HF_TOKEN = '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'
-DATASET_TO_LOAD = 'chizhikchi/CARES'
+DATASET_TO_LOAD = 'bigbio/meddocan'
 DATASET_TO_UPDATE = 'somosnlp/spanish_medica_llm'
 
 #Loggin to Huggin Face
@@ -41,7 +41,7 @@ dataset_CODING
 royalListOfCode = {}
 issues_path = 'dataset'
 tokenizer = AutoTokenizer.from_pretrained("DeepESP/gpt2-spanish-medium")
-
+DATASET_SOURCE_ID = '6'
 #Read current path
 path = Path(__file__).parent.absolute()
 
@@ -105,8 +105,8 @@ cantemistDstDict = {
   'topic': '',
   'speciallity': '',
   'raw_text_type': 'clinic_case',
-  'topic_type': 'medical_diagnostic',
-  'source': '5',
+  'topic_type': '',
+  'source': DATASET_SOURCE_ID,
   'country': 'es',
   'document_id': ''
 }
@@ -117,37 +117,27 @@ countCopySeveralDocument = 0
 counteOriginalDocument = 0
 
 for iDataset in dataset_CODING:
-    if iDataset == 'test':
+    if iDataset == 'train':
       for item in dataset_CODING[iDataset]:
         #print ("Element in dataset")
-        idFile = item['iddoc']
-        text = item['full_text']
-        labels_of_type = item['icd10']
+        idFile = item['document_id']
+        text = item['text']
 
         #Find topic or diagnosti clasification about the text
-        diagnostyc_types = getCodeDescription( labels_of_type)
-        counteOriginalDocument += 1
-        classFileSize = len(diagnostyc_types)
+       
+        counteOriginalDocument += 1  
+        newCorpusRow = cantemistDstDict.copy()
 
-        #If there are more clasification about the file
-        
-        if classFileSize > 1:
-         countCopySeveralDocument += classFileSize - 1
+          #print('Current text has ', currentSizeOfTokens)
+          #print('Total of tokens is ', totalOfTokens)
 
         listOfTokens = tokenizer.tokenize(text)
         currentSizeOfTokens = len(listOfTokens)
         totalOfTokens += currentSizeOfTokens
-        
-        for key, iTypes in diagnostyc_types.items():
-          #print(iTypes)
-          newCorpusRow = cantemistDstDict.copy()
 
-          #print('Current text has ', currentSizeOfTokens)
-          #print('Total of tokens is ', totalOfTokens)
-          newCorpusRow['raw_text'] = text
-          newCorpusRow['document_id'] = idFile
-          newCorpusRow['topic'] = iTypes
-          corpusToLoad.append(newCorpusRow)
+        newCorpusRow['raw_text'] = text
+        newCorpusRow['document_id'] = idFile
+        corpusToLoad.append(newCorpusRow)
         
 df = pd.DataFrame.from_records(corpusToLoad)
 df.to_json(f"{str(path)}/{issues_path}/spanish_medical_llms.jsonl", orient="records", lines=True)
