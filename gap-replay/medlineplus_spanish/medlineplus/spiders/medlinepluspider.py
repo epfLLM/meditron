@@ -7,9 +7,7 @@ class MedlinePlusSpider(scrapy.Spider):
         'https://medlineplus.gov/spanish/encyclopedia.html',
         'https://medlineplus.gov/spanish/pruebas-de-laboratorio/',
         'https://medlineplus.gov/spanish/genetica/',
-        'https://medlineplus.gov/spanish/healthtopics.html',
-        'https://medlineplus.gov/spanish/complementaryandintegrativemedicine.html',
-        'https://medlineplus.gov/spanish/herbalmedicine.html',
+        'https://medlineplus.gov/spanish/healthtopics.html',       
         'https://medlineplus.gov/spanish/druginformation.html'
     ]
 
