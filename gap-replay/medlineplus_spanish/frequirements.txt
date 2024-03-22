@@ -62,7 +62,7 @@ python-socks==1.1.0
 #pywin32
 
 queuelib==1.5.0
-requests==2.24.0
+requests==2.31.0
 schedule==0.6.0
 Scrapy 
 service-identity 
