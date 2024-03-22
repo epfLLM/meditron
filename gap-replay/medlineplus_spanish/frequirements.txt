@@ -58,8 +58,8 @@ pytest==6.0.2
 pytest-runner==5.2
 python-dateutil==2.8.1
 python-socks==1.1.0
-pytz
-pywin32
+#pytz
+#pywin32
 
 queuelib==1.5.0
 requests==2.24.0
