@@ -93,7 +93,8 @@ def setup_chrome_driver(
     download_path: str = None,
     binary_location: str = None,
     driver_location: str = None,
-    headless: bool = False
+    headless: bool = False,
+    eager_mode: bool = False
 ):
     '''
     Set up Chrome driver instance with download path.
@@ -103,6 +104,9 @@ def setup_chrome_driver(
     if binary_location:
         chrome_options.binary_location = binary_location
 
+    if eager_mode:
+        chrome_options.page_load_strategy = 'eager'
+
     if headless:
         chrome_options.add_argument('--headless')
 
@@ -111,7 +115,6 @@ def setup_chrome_driver(
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--dns-prefetch-disable")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.page_load_strategy = 'eager'
 
     if include_experimental:
         assert download_path is not None, "Download path must be provided if including experimental options."
