@@ -1,10 +1,10 @@
 '''
 Script for 12/16 Chrome (Firefox, experimentally)-based guideline scrapers.
 
-Sources supported: 
+Sources supported:
 AAFP - American Academy of Family Physicians
 CCO - Cancer Care Ontario
-CDC - Centers for Disease Control and Prevention 
+CDC - Centers for Disease Control and Prevention
 CMA - Canadian Medical Association
 CPS - Canadian Paediatric Society
 Drugs.com
@@ -271,7 +271,7 @@ class Scraper():
     def scrape(self):
         '''
         Scrape articles to self.path/{source}/{source}.jsonl.
-        1 - Download links to source articles. 
+        1 - Download links to source articles.
         2 - Download articles from links.
         3 - Convert PDFs to text (if necessary)
         '''
@@ -307,7 +307,7 @@ class AAFPScraper(Scraper):
         topics = list(set([href.get_attribute("href") for href in elements]))
         links = []
         for topic in tqdm(topics):
-            try: 
+            try:
                 self.driver.get(topic)
                 wait = WebDriverWait(self.driver, 10)
                 elements = wait.until(EC.presence_of_all_elements_located((
@@ -352,7 +352,7 @@ class CCOScraper(Scraper):
         links = [link for link in links if 'cancercareontario' in link]
         self.save_links(links)
         return links
-    
+
     def scrape_articles(self, links):
         os.makedirs(self.pdf_path, exist_ok=True)
         for link in tqdm(links):
@@ -530,7 +530,7 @@ class CMAScraper(Scraper):
 
 class CPSScraper(Scraper):
     '''
-    Source: CPS - Canadian Paediatric Society 
+    Source: CPS - Canadian Paediatric Society
     '''
     def __init__(self, path, **kwargs):
         super().__init__('cps', path, **kwargs)
@@ -829,7 +829,7 @@ class MAGICScraper(Scraper):
                     ran.set_description("Waiting for more click")
                     time.sleep(7)
                 except:
-                    pass  
+                    pass
                 wait = WebDriverWait(self.driver, 10)
                 element = wait.until(EC.presence_of_element_located((
                     By.XPATH, "//main[@class='centerPanel noTabs']/div[@id='mainContent']//div[@class='guidelinePanel']")))
