@@ -10,3 +10,4 @@ webdriver-manager
 spacy
 langdetect
 pypdf2
+scipdf
