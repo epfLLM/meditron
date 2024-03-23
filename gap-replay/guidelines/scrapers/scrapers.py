@@ -92,7 +92,8 @@ def setup_chrome_driver(
     include_experimental: bool = True,
     download_path: str = None,
     binary_location: str = None,
-    driver_location: str = None
+    driver_location: str = None,
+    headless: bool = False
 ):
     '''
     Set up Chrome driver instance with download path.
@@ -102,7 +103,9 @@ def setup_chrome_driver(
     if binary_location:
         chrome_options.binary_location = binary_location
 
-    chrome_options.add_argument('--headless')
+    if headless:
+        chrome_options.add_argument('--headless')
+
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument("--disable-extensions")
