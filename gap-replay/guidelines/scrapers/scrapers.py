@@ -61,6 +61,7 @@ from selenium import webdriver
 from selenium.webdriver import FirefoxOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ChromeOptions
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common import NoSuchElementException
@@ -72,7 +73,7 @@ DEFAULT_DRIVER = 'chrome'  # Switch to 'firefox' if you want to use Firefox inst
 
 def setup_firefox_driver(download_path):
     '''
-    Set up Firefox driver instance with download path. 
+    Set up Firefox driver instance with download path.
     '''
     profile = FirefoxOptions()
     profile.binary_location = "/usr/bin/firefox"
@@ -87,18 +88,45 @@ def setup_firefox_driver(download_path):
     return driver
 
 
-def setup_chrome_driver(download_path):
+def setup_chrome_driver(
+    include_experimental: bool = True,
+    download_path: str = None,
+    binary_location: str = None,
+    driver_location: str = None
+):
     '''
-    Set up Chrome driver instance with download path. 
+    Set up Chrome driver instance with download path.
     '''
     chrome_options = ChromeOptions()
-    chrome_options.add_experimental_option("prefs", {
-        "download.default_directory": download_path,
-        "download.prompt_for_download": False,
-        "download.directory_upgrade": True,
-        "safebrowsing.enabled": False,
-    })
-    driver = webdriver.Chrome(options=chrome_options)
+
+    if binary_location:
+        chrome_options.binary_location = binary_location
+
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--dns-prefetch-disable")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.page_load_strategy = 'eager'
+
+    if include_experimental:
+        assert download_path is not None, "Download path must be provided if including experimental options."
+        chrome_options.add_experimental_option("prefs", {
+            "download.default_directory": download_path,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": False,
+        })
+
+    chrome_params = dict(options=chrome_options)
+
+    if driver_location:
+        webdriver_service = Service(driver_location)
+        chrome_params.update(service=webdriver_service)
+
+    driver = webdriver.Chrome(**chrome_params)
+
     return driver
 
 
@@ -161,26 +189,39 @@ def scrape_SPOR_links():
 # ------------------- Scraper Classes ------------------- #
 
 
-class Scraper(): 
+class Scraper():
     '''
     Web Scraper class to scrape clinical guidelines from a source.
     Downloads scraped articles to {path}/raw/{source}.jsonl
     '''
 
-    def __init__(self, source, path):
+    def __init__(
+        self,
+        source: str,
+        path: str,
+        pdfs: bool = False,
+        chrome_binary_location: str = None,
+        chrome_driver_location: str = None
+    ):
         setup_driver = setup_firefox_driver if DEFAULT_DRIVER == 'firefox' else setup_chrome_driver
         self.path = path
         self.source = source
         self.source_path = os.path.join(self.path, self.source)
         os.makedirs(self.source_path, exist_ok=True)
-        self.pdfs = False  # Whether articles need to be converted from PDF to text
+        self.pdfs = pdfs
         self.pdf_path = os.path.join(self.source_path, 'pdfs')
         self.links_path = os.path.join(self.source_path, 'links.txt')
 
         articles_dir = os.path.join(self.path, 'raw')
         os.makedirs(articles_dir, exist_ok=True)
         self.articles_path = os.path.join(articles_dir, f'{source}.jsonl')
-        self.driver = setup_driver(self.pdf_path)
+
+        self.driver = setup_driver(
+            include_experimental=self.pdfs,
+            download_path=self.pdf_path if self.pdfs else None,
+            binary_location=chrome_binary_location,
+            driver_location=chrome_driver_location
+        )
 
     def save_articles(self, articles, path=None):
         '''
@@ -205,18 +246,28 @@ class Scraper():
             'Page.setDownloadBehavior', 
             {'behavior': 'allow', 'downloadPath': self.pdf_path})
 
-    def scrape_links(self):
+    def _scrape_links(self):
         '''
         Scrape links from source to self.links_path.
         '''
         raise NotImplementedError
-    
+
+    def scrape_links(self):
+        '''
+        Scrape links from source to self.links_path.
+        '''
+        if os.path.exists(self.links_path):
+            with open(self.links_path, "r") as f:
+                return [i.strip() for i in f.readlines()]
+        else:
+            return self._scrape_links()
+
     def scrape_articles(self, links):
         '''
         Scrape articles from links to self.path/{source}/{source}.jsonl.
         '''
         raise NotImplementedError
-    
+
     def scrape(self):
         '''
         Scrape articles to self.path/{source}/{source}.jsonl.
@@ -231,8 +282,8 @@ class Scraper():
 
         print(f"Stage 2: Scraping articles from {self.source}...")
         articles = self.scrape_articles(unique_links)
-        
-        if self.pdfs: 
+
+        if self.pdfs:
             print(f"Stage 3: Converting PDFs to text...")
             articles = pdf2text(self.pdf_path, self.articles_path)
 
@@ -245,10 +296,10 @@ class AAFPScraper(Scraper):
     '''
     Source: AAFP - American Academy of Family Physicians (https://www.aafp.org/)
     '''
-    def __init__(self, path):
-        super().__init__('aafp', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('aafp', path, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         self.driver.get("https://www.aafp.org/family-physician/patient-care/clinical-recommendations/recommendations-by-topic.html")
         wait = WebDriverWait(self.driver, 10)
         elements = wait.until(EC.presence_of_all_elements_located((
@@ -293,11 +344,10 @@ class CCOScraper(Scraper):
     '''
     Source: CCO - Cancer Care Ontario
     '''
-    def __init__(self, path):
-        super().__init__('cco', path)
-        self.pdfs = True
+    def __init__(self, path, **kwargs):
+        super().__init__('cco', path, pdfs=True, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         links = scrape_SPOR_links()
         links = [link for link in links if 'cancercareontario' in link]
         self.save_links(links)
@@ -316,17 +366,16 @@ class CCOScraper(Scraper):
             except:
                 pass
         return []
-    
+
 
 class CDCScraper(Scraper):
     '''
     Source: CDC - Centers for Disease Control and Prevention (https://www.cdc.gov/)
     '''
-    def __init__(self, path):
-        super().__init__('cdc', path)
-        self.pdfs = True
+    def __init__(self, path, **kwargs):
+        super().__init__('cdc', path, pdfs=True, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         url = "https://stacks.cdc.gov/cbrowse?pid=cdc%3A100&parentId=cdc%3A100&maxResults=100&start=0"
         self.driver.get(url)
         links = []
@@ -337,7 +386,7 @@ class CDCScraper(Scraper):
                 continue_link.click()
                 time.sleep(5)
                 return True
-            
+
             except NoSuchElementException:
                 return False
         search_expr = "//div[@class='search-result-row card']/div/div[1]/div/a"
@@ -345,8 +394,8 @@ class CDCScraper(Scraper):
         hrefs = wait.until(EC.presence_of_all_elements_located((By.XPATH, search_expr)))
         links.extend([a.get_attribute("href") for a in hrefs])
 
-        while next_page(): 
-            try: 
+        while next_page():
+            try:
                 wait = WebDriverWait(self.driver, 5)
                 hrefs = wait.until(EC.presence_of_all_elements_located((By.XPATH, search_expr)))
                 links.extend([a.get_attribute("href") for a in hrefs])
@@ -355,7 +404,7 @@ class CDCScraper(Scraper):
 
         self.save_links(links)
         return links
-    
+
     def scrape_articles(self, links):
         articles = []
         for page in tqdm(links):
@@ -368,7 +417,7 @@ class CDCScraper(Scraper):
                 pass
                 #but = self.driver.find_element(By.XPATH, "//a[@id='not-link']")
                 #articles.append(but.get_attribute("href"))
-        
+
         self.save_articles(articles)
         return articles
 
@@ -378,8 +427,8 @@ class CMAScraper(Scraper):
     Source: CMA - Canadian Medical Association (https://joulecma.ca/cpg/homepage)
     '''
 
-    def __init__(self, path):
-        super().__init__('cma', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('cma', path, **kwargs)
 
     def dismiss_popup(self):
         try:
@@ -389,7 +438,7 @@ class CMAScraper(Scraper):
         except NoSuchElementException:
             pass
 
-    def scrape_links(self):
+    def _scrape_links(self):
         links = []
         errors = []
         ids = [488, 1038, 1000, 1001, 1003, 1005, 1007, 1009, 1028, 1012, 1014,
@@ -483,15 +532,15 @@ class CPSScraper(Scraper):
     '''
     Source: CPS - Canadian Paediatric Society 
     '''
-    def __init__(self, path):
-        super().__init__('cps', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('cps', path, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         links = scrape_SPOR_links()
         links = [link for link in links if 'cps.ca' in link]
         self.save_links(links)
         return links
-    
+
     def scrape_articles(self, links):
         articles = []
         for link in tqdm(links):
@@ -515,10 +564,10 @@ class DrugsScraper(Scraper):
     '''
     Source: Drugs.com (https://www.drugs.com/)
     '''
-    def __init__(self, path):
-        super().__init__('drugs', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('drugs', path, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         self.driver.get("https://www.drugs.com/dosage/")
         wait = WebDriverWait(self.driver, 10)
         elements = wait.until(EC.presence_of_all_elements_located((
@@ -526,7 +575,7 @@ class DrugsScraper(Scraper):
         links = [el.get_attribute("href") for el in elements]
         self.save_links(links)
         return links
-    
+
     def scrape_articles(self, links):
         articles = []
         for link in tqdm(links):
@@ -537,16 +586,21 @@ class DrugsScraper(Scraper):
                     By.XPATH, "//ul/li/a[contains(@href, '/dosage/')]")))
                 hrefs_art_clean = [el.get_attribute("href") for el in elements_inner]
                 for href_inner in hrefs_art_clean:
-                    self.driver.get(href_inner)
-                    wait = WebDriverWait(self.driver, 10)
-                    content = wait.until(EC.presence_of_element_located((
-                        By.XPATH, "//div[@class='contentBox']")))
-                    article = {"title": self.driver.title, 
-                               "text": markdownify.markdownify(content),
-                               "url": link}
-                    articles.append(article)
-            except:
-                pass
+                    try:
+                        self.driver.get(href_inner)
+                        wait = WebDriverWait(self.driver, 10)
+                        div_content = wait.until(EC.presence_of_element_located((By.ID, "content")))
+                        content = "<div>" + div_content.get_attribute('innerHTML') + "</div>"
+                        article = {
+                            "title": self.driver.title,
+                            "text": markdownify.markdownify(content),
+                            "url": link
+                        }
+                        articles.append(article)
+                    except Exception as e:
+                        print("Page-level: " + str(e))
+            except Exception as e:
+                print("Section-level: " + str(e))
         self.save_articles(articles)
         return articles
 
@@ -555,16 +609,18 @@ class GCScraper(Scraper):
     '''
     Source: GuidelineCentral (https://www.guidelinecentral.com/)
     '''
-    def __init__(self, path):
-        super().__init__('guidelinecentral', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('guidelinecentral', path, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         url = "https://www.guidelinecentral.com/guidelines/?t=guideline&f=%7B%22sort%22%3A%7B%22type%22%3A%22relevance%22%2C%22order%22%3A%22desc%22%7D%2C%22range%22%3A%7B%22max%22%3A0%2C%22start%22%3A0%2C%22limit%22%3A20%7D%2C%22filters%22%3A%5B%7B%22searchType%22%3A%22guideline%22%2C%22name%22%3A%22Within%2010%20Years%20(1766)%22%2C%22type%22%3A%22within10Years%22%2C%22syntax%22%3A%22docPubDate%3A%5BNOW-10YEAR%20TO%20NOW%5D%22%7D%5D%2C%22state%22%3A%22guidelines_landing_search%22%2C%22term%22%3A%22contentType%3ADOCUMENT%22%7D"
         self.driver.get(url)
         links = []
+        count = 0
         while True:
+            print(count)
             try:
-                wait = WebDriverWait(self.driver, 5)
+                wait = WebDriverWait(self.driver, 30)
                 hrefs = wait.until(EC.presence_of_all_elements_located((
                     By.XPATH, "//div[@class='result-meta']/h3/a")))
                 link = [href.get_attribute("href") for href in hrefs]
@@ -572,31 +628,43 @@ class GCScraper(Scraper):
                 next_page = wait.until(EC.presence_of_element_located((
                     By.XPATH, "//a[@class='page-link next-page-of-results']")))
                 next_page.click()
-                time.sleep(5)
-            except NoSuchElementException:
+                time.sleep(10)
+                count += 1
+            except:
+                print("No more pages")
                 break
         links = list(set(links))
         self.save_links(links)
-    
+        return links
+
     def scrape_articles(self, links):
         articles = []
         for link in tqdm(links):
-            self.driver.get(link)
-            wait = WebDriverWait(self.driver, 5)
-            main_content = wait.until(EC.presence_of_element_located((
-                By.XPATH, "//main[@class='site-main']")))
-            articles.append(main_content.text)
-            time.sleep(1)
-        parts = (articles.split("]["))
-        # sum = 0
-        for i, part in enumerate(parts):
-            parts[i] = (part.split('", "'))
-        parts = [subparts for part in parts for subparts in part]
-        dict_parts = []
-        for part in parts:
-            dict_parts.append({"title": part[0:part.find("\\n")],
-                               "text": part.replace("\\n", "\n").replace("\n\n", "\n")})
-        self.save_articles(dict_parts)
+            try:
+                self.driver.get(link)
+                wait = WebDriverWait(self.driver, 10)
+                content = wait.until(EC.presence_of_element_located((By.XPATH, "//main[@class='site-main']")))
+                try:
+                    title = content.find_element(By.XPATH, "//div[@class='guideline-title text-center']/h1").text
+                except NoSuchElementException:
+                    print("No title found")
+                    title = ""
+                try:
+                    main_content = content.find_element(By.ID, "summary-nav").text
+                except NoSuchElementException:
+                    print("No main content found")
+                    main_content = ""
+                if title and main_content:
+                    articles.append({
+                        "title": title,
+                        "text": main_content
+                    })
+                time.sleep(1)
+            except Exception as e:
+                print(e)
+                print("Skipping: " + link)
+        self.save_articles(articles)
+        return articles
 
 
 def download_file(url, local_filename):
@@ -609,19 +677,18 @@ def download_file(url, local_filename):
 
 class ICRCScraper(Scraper):
     '''
-    Source: ICRC - International Committee of the Red Cross 
+    Source: ICRC - International Committee of the Red Cross
     '''
-    def __init__(self, path):
-        super().__init__('icrc', path)
-        self.pdfs = True
+    def __init__(self, path, **kwargs):
+        super().__init__('icrc', path, pdfs=True, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         return []
-    
+
     def scrape_articles(self, links):
         '''
-        This one differs from other scrapers; 
-        it downloads a zip file of ICRC PDFs. 
+        This one differs from other scrapers;
+        it downloads a zip file of ICRC PDFs.
         '''
         assert [] == links
 
@@ -659,10 +726,10 @@ class IDSAScraper(Scraper):
     '''
     Source: IDSA - Infectious Diseases Society of America (https://www.idsociety.org/)
     '''
-    def __init__(self, path):
-        super().__init__('idsa', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('idsa', path, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         self.driver.get("https://www.idsociety.org/practice-guideline/alphabetical-guidelines/")
         wait = WebDriverWait(self.driver, 20)
         content = wait.until(EC.presence_of_element_located((
@@ -674,12 +741,12 @@ class IDSAScraper(Scraper):
         links = [link for link in links if 'idsociety' in link and 'pdf' not in link]
         self.save_links(links)
         return links
-    
+
     def scrape_articles(self, links):
         articles = []
         for link in tqdm(links):
             print(link)
-            try: 
+            try:
                 self.driver.get(link)
                 wait = WebDriverWait(self.driver, 10)
                 content = wait.until(EC.presence_of_element_located((By.XPATH, "//article")))
@@ -697,16 +764,16 @@ class IDSAScraper(Scraper):
         self.save_articles(articles)
         return articles
 
-    
+
 class MAGICScraper(Scraper):
     '''
     Source: MAGIC - Making GRADE the Irresistible Choice (https://app.magicapp.org/)
 
-    UNTESTED. 
+    UNTESTED.
     '''
 
-    def __init__(self, path):
-        super().__init__('magic', path)
+    def __init__(self, path, **kwargs):
+        super().__init__('magic', path, **kwargs)
 
     def scroll_down(self):
         last_height = self.driver.execute_script("return document.body.scrollHeight")
@@ -718,19 +785,19 @@ class MAGICScraper(Scraper):
                 break
             last_height = new_height
 
-    def scrape(self): 
+    def scrape(self):
         ''' No links for MAGIC. '''
         articles = self.scrape_articles()
         print(f"Saved {len(articles)} {self.source} articles to {self.articles_path}.")
         self.driver.quit()
-    
+
     def scrape_articles(self):
         articles = []
         self.driver.get("https://app.magicapp.org/#/guidelines")
         wait = WebDriverWait(self.driver, 10)
         element = wait.until(EC.presence_of_all_elements_located((
             By.XPATH, "//a[@class='contentItemDataTitle']")))
-        
+
         total = len(element)
         ran = tqdm(range(total))
         for i in ran:
@@ -783,21 +850,20 @@ class MAGICScraper(Scraper):
         self.save_articles(articles)
         return articles
 
-        
+
 class SPORScraper(Scraper):
     '''
-    Source: SPOR - Strategy for Patient-Oriented Research 
+    Source: SPOR - Strategy for Patient-Oriented Research
     '''
-    def __init__(self, path):
-        super().__init__('spor', path)
-        self.pdfs = True
-    
-    def scrape_links(self):
+    def __init__(self, path, **kwargs):
+        super().__init__('spor', path, pdfs=True, **kwargs)
+
+    def _scrape_links(self):
         links = scrape_SPOR_links()
         pdf_links = [link for link in links if '.pdf' in link]
         self.save_links(pdf_links)
         return pdf_links
-    
+
     def scrape_articles(self, links):
         self.driver.set_page_load_timeout(2)
         fail = 0
@@ -821,11 +887,10 @@ class WHOScraper(Scraper):
           Too long: complaints about timeouts, too fast and don't scrape the data.
     '''
 
-    def __init__(self, path):
-        super().__init__('who', path)
-        self.pdfs = True
+    def __init__(self, path, **kwargs):
+        super().__init__('who', path, pdfs=True, **kwargs)
 
-    def scrape_links(self):
+    def _scrape_links(self):
         self.driver.get("https://www.who.int/publications/i?publishingoffices=c09761c0-ab8e-4cfa-9744-99509c4d306b")
         wait = WebDriverWait(self.driver, 10)
         pdf_urls = []
@@ -850,7 +915,7 @@ class WHOScraper(Scraper):
                 continue
         self.save_links(pdf_urls)
         return pdf_urls
-    
+
     def scrape_articles(self, links):
         os.makedirs(self.pdf_path, exist_ok=True)
         articles = []
@@ -882,15 +947,23 @@ SCRAPERS = {
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", 
-                        type=str, 
+    parser.add_argument("--path",
+                        type=str,
                         # default=os.path.join(os.getcwd(), 'raw'),
                         default=os.getcwd(),
                         help="Path to download scraped guidelines to.")
-    parser.add_argument("--sources", 
-                        nargs="+", 
+    parser.add_argument("--sources",
+                        nargs="+",
                         default=list(SCRAPERS.keys()),
                         help="List of sources to scrape, formatted as: --sources source1 source2 ... Default: all sources.")
+    parser.add_argument("--chrome_binary_location",
+                        type=str,
+                        default=None,
+                        help="Path to Chrome binary.")
+    parser.add_argument("--chrome_driver_location",
+                        type=str,
+                        default=None,
+                        help="Path to Chrome driver.")
     catch_scrape_exceptions = False
     # catch_scrape_exceptions = True
     args = parser.parse_args()
@@ -900,11 +973,16 @@ if __name__ == "__main__":
 
     scrapers_dict = {k: v for k, v in SCRAPERS.items() if k in args.sources} if args.sources else SCRAPERS
     print(f"Scraping {len(scrapers_dict)} sources: {list(scrapers_dict.keys())}")
-    
+
     for i, (source, scraper_class) in enumerate(scrapers_dict.items()):
         print('\n' + '-' * 50 + f"Scraping {source} [{i+1}/{len(scrapers_dict)}]...")
-        try: 
-            scraper = scraper_class(args.path)
+        try:
+            scrap_params = dict(path=args.path)
+            if args.chrome_binary_location:
+                scrap_params.update(chrome_binary_location=args.chrome_binary_location)
+            if args.chrome_driver_location:
+                scrap_params.update(chrome_driver_location=args.chrome_driver_location)
+            scraper = scraper_class(**scrap_params)
         except Exception as e:
             print(f"Error while initializing {source} scraper: {e}")
             continue
