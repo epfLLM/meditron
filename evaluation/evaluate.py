@@ -239,7 +239,7 @@ def accuracy_metric(data, **kwargs):
 
     return {
         "accuracy": accuracy_score(preds, golds),
-        "accuracy_calibrate": acc / counter,
+        "accuracy_calibrate": acc / counter if counter > 0 else 0,
         "precision": precision,
         "recall": recall,
         "f1": f1,
