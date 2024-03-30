@@ -425,6 +425,7 @@ class MedQA(Benchmark):
         self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
         self.splits = ['train', 'validation', 'test']
         self.num_options = 5
+        self.subsets = ['med_qa_en_source']
 
     @staticmethod
     def custom_preprocessing(row):
