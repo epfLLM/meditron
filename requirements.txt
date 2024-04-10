@@ -6,3 +6,5 @@ nltk
 tqdm
 sentencepiece # 0.1.97
 datasets # 2.14.6
+wandb
+scikit-learn

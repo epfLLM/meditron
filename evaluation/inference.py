@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import vllm
 import torch
-import openai
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
