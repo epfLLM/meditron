@@ -28,6 +28,7 @@ def benchmark_factory(name):
     """
     # Note: benchmark is instantiated *after* selection.
     factories = {
+        "head_qa": HeadQA,
         "medmcqa": MedMCQA,
         "pubmedqa": ClosedPubMedQA,
         "open_pubmedqa": PubMedQA,
@@ -315,6 +316,33 @@ class Benchmark:
         print("Loading {} generations from the following path: {}".format(self.name, path))
         self.generations = pd.read_json(path)
 
+class HeadQA(Benchmark):
+    '''
+    HEAD-QA is a multi-choice HEAlthcare Dataset. The questions come from exams 
+    to access a specialized position in the Spanish healthcare system, and are 
+    challenging even for highly specialized humans.
+
+    Huggingface card: https://huggingface.co/datasets/boysack/head_qa
+    '''
+    def __init__(self, name='head_qa') -> None:
+        super().__init__(name)
+        self.hub_name = 'boysack/head_qa'
+        self.dir_name = 'boysack___head_qa'
+        self.path = os.path.join(ROOT_DIR, 'benchmarks', 'datasets', self.dir_name)
+        self.splits = ['train', 'validation', 'test']
+        self.num_options = 5 # 5 train, 4 validation and test
+        #self.subsets = ['<If subset exist, specify here>'] # es and en
+
+    @staticmethod
+    def custom_preprocessing(row):
+        options = sorted(row["answers"], key=lambda answer: answer["aid"]) # needed?
+        options = [option["atext"] for option in options]
+        answer = int(row['ra'])
+        row['prompt'] = format_mcq(row['qtext'], options)
+        row['gold'] = chr(ord('A')+answer-1) if answer in range(1, len(options)+1) else None # answers are 1-based
+
+                
+        return row
 
 class MedMCQA(Benchmark):
     '''

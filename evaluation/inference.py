@@ -16,6 +16,7 @@ logger = logging.getLogger("meditron.evaluation.inference")
 logger.setLevel(logging.INFO)
 
 INSTRUCTIONS = {
+    'head_qa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'head_qa'},
     'truthfulqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'truthfulqa', 'cot_col': 'exp'},
     'medmcqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'medmcqa', 'cot_col': 'exp'},
     'pubmedqa': {'task': 'mcq', 'partition': 'test', 'instructions': 'pubmedqa', 'cot_col': 'long_answer'},
@@ -28,6 +29,7 @@ INSTRUCTIONS = {
 }
 
 INSTRUCTIONS_SIMPLE = {
+    'head_qa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'mcp'},
     'truthfulqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'mcp', 'cot_col': 'exp'},
     'medmcqa': {'task': 'mcq', 'partition': 'validation', 'instructions': 'mcp', 'cot_col': 'exp'},
     'pubmedqa': {'task': 'mcq', 'partition': 'test', 'instructions': 'open_question', 'cot_col': 'long_answer'},
@@ -83,32 +85,20 @@ def vllm_infer(client, tokenizer, prompt, stop_seq, max_new_tokens=1024, cot=Fal
     :param temperature: float, the temperature to use for sampling
     """
 
-    response = client.generate(prompt, sampling_params=vllm.SamplingParams(
-        # See https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
-        best_of=1,
+    sampling_params = vllm.SamplingParams(
         presence_penalty=0.0,
         frequency_penalty=1.0,
-        top_k=-1,
-        top_p=1.0,
         temperature=temperature,
         stop=stop_seq,
-        use_beam_search=False,
         max_tokens=max_new_tokens,
-        logprobs=5
-    ))
+        # 'best_of' and 'use_beam_search' removed to prevent crashes
+        # removed 'top_k' and 'top_p' (redundant for temp=0)
+        # and dropped 'logprobs=5' to eliminate unnecessary GPU overhead.
+    )
 
-    def top_answer(logprob):
-        top_token = max(logprob, key=logprob.get)
-        output_text = tokenizer.decode(top_token, skip_special_tokens=True)
-        return output_text
+    response = client.generate(prompt, sampling_params=sampling_params)
 
-    if len(response) > 0:
-        return [r.outputs[0].text for r in response]
-
-    if not cot:
-        return top_answer(response[0].outputs[0].logprobs[0])
-    else:
-        return response[0].outputs[0].text
+    return [r.outputs[0].text for r in response]
 
 
 def format_prompt(prompt, args):
@@ -257,8 +247,14 @@ def main(args):
         logging.info(f"/pure-mlo-scratch/trial-runs/{args.checkpoint_name}")
         kwargs["download_dir"] = f"/pure-mlo-scratch/trial-runs/{args.checkpoint_name}"
 
-    if "7b" in args.checkpoint:
-        kwargs["tensor_parallel_size"] = 4
+    #if "7b" in args.checkpoint:
+    #    kwargs["tensor_parallel_size"] = 4
+
+    kwargs["enforce_eager"] = True
+    kwargs["gpu_memory_utilization"] = 0.8
+    
+    if "awq" in args.checkpoint:
+        kwargs["quantization"] = "awq"
 
     client = vllm.LLM(**kwargs)
 

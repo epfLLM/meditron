@@ -8,42 +8,37 @@ checkpoints=(["mpt"]="mosaicml/mpt-7b" \
              ["falcon"]="tiiuae/falcon-7b" \
              ["mistral"]="mistralai/Mistral-7B-Instruct-v0.1" \
              ["zephyr"]="HuggingFaceH4/zephyr-7b-beta" \
+             ["meditron-7b"]="epfl-llm/meditron-7b" \
+             ["meditron-7b-awq"]="TheBloke/meditron-7B-AWQ" \
              ["baseline-7b"]="/pure-mlo-scratch/llama2/converted_HF_7B_8shard/" \
              ["pmc-7b"]="/pure-mlo-scratch/trial-runs/pmc-7b/hf_checkpoints/raw/pmc-llama-7b" \
-             ["meditron-7b"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/raw/release/" \
              ["clinical-camel"]="wanglab/ClinicalCamel-70B" \
              ["med42"]="m42-health/med42-70b" \
-
              ["baseline-70b"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/raw/release/" \
              ["meditron-70b"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/raw/iter_23000/" \
-
              ["baseline-medmcqa"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/medmcqa/" \
              ["baseline-pubmedqa"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/pubmedqa/" \
              ["baseline-medqa"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/medqa/" \
              ["baseline-cotmedmcqa"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/cotmedmcqa/" \
              ["baseline-cotpubmedqa"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/cotpubmedqa/" \
              ["baseline-medical"]="${CHECKPOINT_DIR}baseline-7b/hf_checkpoints/instruct/medical/" \
-
              ["pmc-medmcqa"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/medmcqa/" \
              ["pmc-medqa"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/medqa-32/" \
              ["pmc-pubmedqa"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/pubmedqa/" \
              ["pmc-cotpubmedqa"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/cotpubmedqa/" \
              ["pmc-cotmedmcqa"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/cotmedmcqa/"\
              ["pmc-medical"]="${CHECKPOINT_DIR}pmc-7b/hf_checkpoints/instruct/medical/"\
-
              ["meditron-7b-medmcqa"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/instruct/medmcqa/" \
              ["meditron-7b-pubmedqa"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/instruct/pubmedqa/" \
              ["meditron-7b-medqa"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/instruct/medqa/" \
              ["meditron-7b-cotpubmedqa"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/instruct/cotpubmedqa/" \
              ["meditron-7b-cotmedmcqa"]="${CHECKPOINT_DIR}meditron-7b/hf_checkpoints/instruct/cotmedmcqa/" \
-
              ["baseline-70b-medqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/medqa/" \
              ["baseline-70b-medmcqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/medmcqa/" \
              ["baseline-70b-pubmedqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/pubmedqa/" \
              ["baseline-70b-cotmedqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/cotmedqa/" \
              ["baseline-70b-cotmedmcqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/cotmedmcqa/" \
              ["baseline-70b-cotpubmedqa"]="${CHECKPOINT_DIR}baseline-70b/hf_checkpoints/instruct/cotpubmedqa/" \
-
              ["meditron-70b-medmcqa"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/medmcqa/" \
              ["meditron-70b-pubmedqa"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/pubmedqa" \
              ["meditron-70b-medqa"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/medqa/" \
@@ -52,15 +47,15 @@ checkpoints=(["mpt"]="mosaicml/mpt-7b" \
              ["meditron-70b-cotmedqa-qbank"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/cotmedqa/" \
              ["meditron-70b-instruct"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/medical")
 
-CHECKPOINT_NAME=meditron-70b
-BENCHMARK=medmcqa
+CHECKPOINT_NAME=meditron-7b-awq
+BENCHMARK=head_qa
 SHOTS=0
 COT=0
 SC_COT=0
 MULTI_SEED=0
 BACKEND=vllm
 WANDB=1
-BATCH_SIZE=16
+BATCH_SIZE=4
 
 HELP_STR="[--checkpoint=$CHECKPOINT_NAME] [--benchmark=$BENCHMARK] [--help]"
 
@@ -72,8 +67,7 @@ if [[ $# = 1 ]] && [[ $1 = "-h" ]] || [[ $1 = "--help" ]]; then
 	help
 	exit 0
 elif [[ $# = 0 ]]; then
-	help
-	exit 1
+	echo "Running with default parameters..."
 fi
 
 while getopts c:b:s:r:e:m:t:d: flag
@@ -92,6 +86,10 @@ done
 
 CHECKPOINT=${checkpoints[$CHECKPOINT_NAME]}
 
+if [[ -z "$CHECKPOINT" ]]; then
+    CHECKPOINT=$CHECKPOINT_NAME
+fi
+
 echo
 echo "Running inference pipeline"
 echo "Checkpoint name: $CHECKPOINT_NAME"
@@ -105,12 +103,12 @@ echo "SC COT: $SC_COT"
 echo "BATCH_SIZE: $BATCH_SIZE"
 echo
 
-COMMON_ARGS="--checkpoint  $CHECKPOINT \
+COMMON_ARGS="--checkpoint $CHECKPOINT \
     --checkpoint_name ${CHECKPOINT_NAME} \
     --benchmark $BENCHMARK \
     --shots $SHOTS \
     --batch_size $BATCH_SIZE"
-ACC_ARGS="--checkpoint $CHECKPOINT_NAME \
+ACC_ARGS="--checkpoint $CHECKPOINT \
     --benchmark $BENCHMARK \
     --shots $SHOTS"
 
@@ -136,6 +134,14 @@ if [[ $WANDB = 1 ]]; then
     ACC_ARGS="$ACC_ARGS --wandb"
 fi
 
-echo inference.py $COMMON_ARGS
+echo python inference.py $COMMON_ARGS
 python inference.py $COMMON_ARGS
-python evaluate.py $ACC_ARGS
+
+# Safety net: only evaluate if inference succeeded
+if [ $? -eq 0 ]; then
+    echo python evaluate.py $ACC_ARGS
+    python evaluate.py $ACC_ARGS
+else
+    echo "Inference failed. Skipping evaluation."
+    exit 1
+fi

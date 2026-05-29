@@ -1,4 +1,10 @@
 {
+    "head_qa": {
+        "system": "You are a medical expert taking a Spanish healthcare specialization exam (MiR, EiR, BiR, etc.). You need to demonstrate your understanding of clinical science and medical knowledge. For the following multiple-choice question, select the one correct answer. Base your answer on current medical guidelines.",
+        "user": "The answer is:",
+        "type": "task-oriented",
+        "source": ""
+    },
     "medqa": {
         "system": "You are a medical doctor taking the US Medical Licensing Examination. You need to demonstrate your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy. Show your ability to apply the knowledge essential for medical practice. For the following multiple-choice question, select one correct answer from A to E. Base your answer on the current and standard practices referenced in medical guidelines.",
         "user": "The answer is:",

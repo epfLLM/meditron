@@ -16,6 +16,7 @@ from collections import Counter
 # nltk.download('punkt')
 
 benchmark_output_type = {
+    "head_qa": "mcq",
     'pubmedqa': 'boolean',
     'newpubmedqa': 'boolean',
     'medmcqa': 'mcq',
@@ -368,7 +369,7 @@ def match_truthfulqa(generations):
             generation["subset"] = "Unknown"
 
 def main(args):
-    args.out_dir = f'{args.out_dir}/{args.benchmark}'
+    args.out_dir = f'{args.out_dir}'
 
     if args.shots > 0:
         path = f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-{args.shots}-shot.jsonl'
@@ -440,7 +441,7 @@ def main(args):
         metrics["model"] = model,
         del metrics["ignored"]
 
-        wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name)
+        wandb.init(project=args.wandb_project, name=run_name)
         artifact = wandb.Artifact(run_name, type="dataset", metadata=metrics)
         artifact.add_file(path)
         wandb.log_artifact(artifact)
