@@ -102,7 +102,7 @@ def infer_ndocs(cmd: list[str], autoaccept_iters: bool = True) -> int:
         print("zzz")
         time.sleep(1)  # to wait for the closure of the port :6000
     if n_docs is None:
-        print("Falied to infer the number of documents, look at log above")
+        print("Failed to infer the number of documents, look at log above")
         return int(input("Now enter number of documents manually: "))
     print("Number of documents inferred:", n_docs)
     if autoaccept_iters or input(f"Accept {n_docs} documents? (y/n) ") != "n":
